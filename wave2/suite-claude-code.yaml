@@ -1,0 +1,58 @@
+# 7runs flakiness leaderboard — Phase 1-A, Wave 2 (hard discriminating cases)
+# Agent under test: Claude Code, headless via `claude -p` (shell adapter),
+# RESTRICTED to Read/Grep/Glob with no skills and no MCP. This is NOT
+# "out-of-the-box Claude Code" — see RESULTS.md.
+#
+# ISOLATION (Wave 2): Wave 1's one flake was a user skill (/security-review) + MCP
+# leaking in via the ambient ~/.claude config. The clean-CLAUDE_CONFIG_DIR approach
+# is INFEASIBLE on this machine: the subscription token is bound to the default
+# ~/.claude location, so any custom config dir reads as "Not logged in" and also
+# breaks the judge (which shares the run's process env). Instead we isolate
+# structurally: default permission mode + `--allowedTools "Read Grep Glob"` means
+# the Skill/SlashCommand/MCP tools are NOT available, so no skill or MCP can run;
+# `--strict-mcp-config` ignores any MCP config file. Model pinned to
+# claude-opus-4-8 (same as the three subagents) so differences are attributable to
+# prompt/scaffolding, not the model.
+#
+# Run from the repo root:
+#   env -u ANTHROPIC_API_KEY 7runs run wave2/suite-claude-code.yaml --label wave2
+name: leaderboard-w2-claude-code-restricted
+adapter:
+  type: shell
+  command: claude
+  args:
+    - "-p"
+    - "{{prompt}} Read the file '{{files}}' in your current working directory, then review it."
+    - "--allowedTools"
+    - "Read Grep Glob"
+    - "--strict-mcp-config"
+    - "--model"
+    - "claude-opus-4-8"
+  prompt_via: argv
+defaults:
+  reps: 7
+  timeout_s: 300
+  judge_model: claude-sonnet-5
+  judge_transport: claude-agent
+cases:
+  - id: obfuscated-cmdi
+    label: positive
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-obfuscated-cmdi.patch]
+    checks:
+      - llm_rubric: "The diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import."
+  - id: fp-bait-parameterized-like
+    label: negative
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-fp-bait-like.patch]
+    checks:
+      - llm_rubric: "This diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists."
+  - id: multifile-xss
+    label: positive
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-multifile-xss.patch]
+    checks:
+      - llm_rubric: "The diff introduces a reflected XSS vulnerability that spans two files. In `views.py` the previous `escape(comment)` is removed and the user-controlled `comment` (from request.GET) is now passed through `comment_html(...)`; in `render.py` the new `comment_html` interpolates its argument directly into HTML via an f-string with no escaping. Together, attacker-controlled `comment` is reflected as raw HTML. PASS only if the review identifies a real XSS (cross-site scripting) vulnerability arising from unescaped user input rendered into HTML; FAIL if it misses it (for example by reviewing only one of the two files), concludes the code is safe, or only comments on style."

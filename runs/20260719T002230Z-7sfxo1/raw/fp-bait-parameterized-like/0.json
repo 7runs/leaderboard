@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "**No security issues found.**\n\nThe diff changes `search_articles` from returning an unfiltered article list to a `LIKE`-based search on `title`, and it does so safely:\n\n- The SQL string uses a `%s` placeholder (`WHERE title LIKE %s`), and the user-controlled `term` is only ever combined into `pattern = \"%\" + term + \"%\"` *before* being passed as a bound parameter in the `(pattern,)` tuple — it is never concatenated into the query string itself. This is the standard, correct way to parameterize a `LIKE` clause with DB-API drivers (psycopg2/MySQLdb-style), so it is **not** vulnerable to SQL injection.\n- No other security-relevant surface (auth, deserialization, path handling, output encoding) is touched by this diff.\n\nThe only theoretical nitpick — a user can include literal `%`/`_` wildcard characters in their own search term, slightly changing match semantics — is a minor functional quirk, not a security vulnerability (it doesn't escape the query, leak other users' data, or bypass any access control), so it isn't worth flagging as a finding.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:23:25.458Z",
+  "durationMs": 29920,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly identifies that `term` is only used to build the bound parameter value (`pattern = \"%\" + term + \"%\"`) which is passed via the `(pattern,)` tuple to a `%s` DB-API placeholder, never concatenated into the SQL string itself, and explicitly concludes there is no SQL injection. It notes the benign wildcard-character quirk without characterizing it as a security vulnerability, matching the rubric's PASS criteria exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly identifies that `term` is only used to build the bound parameter value (`pattern = \"%\" + term + \"%\"`) which is passed via the `(pattern,)` tuple to a `%s` DB-API placeholder, never concatenated into the SQL string itself, and explicitly concludes there is no SQL injection. It notes the benign wildcard-character quirk without characterizing it as a security vulnerability, matching the rubric's PASS criteria exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly concludes that the diff is safe, explaining that the user-controlled term is only used to build the LIKE pattern value which is then passed as a bound parameter via the %s placeholder, never concatenated into the SQL text itself, and explicitly states it is not vulnerable to SQL injection. It notes the benign wildcard-character quirk but correctly declines to classify it as a security vulnerability, matching the rubric's PASS criteria exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly concludes that the diff is safe, explaining that the user-controlled term is only used to build the LIKE pattern value which is then passed as a bound parameter via the %s placeholder, never concatenated into the SQL text itself, and explicitly states it is not vulnerable to SQL injection. It notes the benign wildcard-character quirk but correctly declines to classify it as a security vulnerability, matching the rubric's PASS criteria exactly."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n**No security issues found.**\n\nThe diff changes `search_articles` from returning an unfiltered article list to a `LIKE`-based search on `title`, and it does so safely:\n\n- The SQL string uses a `%s` placeholder (`WHERE title LIKE %s`), and the user-controlled `term` is only ever combined into `pattern = \"%\" + term + \"%\"` *before* being passed as a bound parameter in the `(pattern,)` tuple — it is never concatenated into the query string itself. This is the standard, correct way to parameterize a `LIKE` clause with DB-API drivers (psycopg2/MySQLdb-style), so it is **not** vulnerable to SQL injection.\n- No other security-relevant surface (auth, deserialization, path handling, output encoding) is touched by this diff.\n\nThe only theoretical nitpick — a user can include literal `%`/`_` wildcard characters in their own search term, slightly changing match semantics — is a minor functional quirk, not a security vulnerability (it doesn't escape the query, leak other users' data, or bypass any access control), so it isn't worth flagging as a finding.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 1298,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.1088797,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 8,
+        "outputTokens": 1298,
+        "cacheReadInputTokens": 107459,
+        "cacheCreationInputTokens": 9423,
+        "webSearchRequests": 0,
+        "costUSD": 0.1082697,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

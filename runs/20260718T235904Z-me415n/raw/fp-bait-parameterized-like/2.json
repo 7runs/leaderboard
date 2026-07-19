@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I've read and analyzed the diff. Here's my security review.\n\n## Finding: No security vulnerability\n\nThe change modifies `search_articles` to filter articles by a search term using a `LIKE` clause. At first glance the pattern below looks suspicious — user input (`term`) is concatenated into a string:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nBut this is **safe**. The critical detail is *where* the concatenation goes:\n\n- `term` is concatenated only to build the **value** `%term%` — it is never spliced into the SQL string itself.\n- The SQL statement uses a `%s` **bind placeholder**, and `pattern` is passed as a **parameter** via the second argument `(pattern,)`.\n- The database driver (Django's DB-API cursor) handles escaping/binding of the parameter, so `term` cannot break out of the string literal or alter the query structure.\n\nAn input like `'; DROP TABLE articles; --` is bound as the literal search value `%'; DROP TABLE articles; --%`, not executed as SQL.\n\n### Why this is a tempting false positive\nThe combination of `\"%\" + term + \"%\"` (string concatenation) + user-controlled input + a raw `cursor.execute` SQL call pattern-matches strongly to SQL injection. The distinguishing factor is that the concatenation produces a *bound parameter*, not *SQL text*. This is the textbook-correct way to do a parameterized `LIKE` search.\n\n### Minor, non-security notes (not vulnerabilities)\n- **LIKE wildcard passthrough:** If a user includes `%` or `_` in `term`, those are treated as LIKE wildcards rather than literal characters. This is a minor functional/behavioral quirk (users can broaden their own search), not a security issue. If literal matching is desired, escape wildcards with an `ESCAPE` clause.\n\n**Conclusion:** No security issues in this diff. The change correctly uses parameterized queries and does not introduce SQL injection.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:00:17.392Z",
+  "durationMs": 32064,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `term` is only concatenated into the LIKE pattern value, while the SQL text itself uses a `%s` bind placeholder with `(pattern,)` passed as a bound parameter, so no SQL injection is possible; it explicitly concluded there is no security vulnerability and only noted the benign LIKE-wildcard passthrough as a non-security functional quirk, matching the rubric's PASS criteria.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `term` is only concatenated into the LIKE pattern value, while the SQL text itself uses a `%s` bind placeholder with `(pattern,)` passed as a bound parameter, so no SQL injection is possible; it explicitly concluded there is no security vulnerability and only noted the benign LIKE-wildcard passthrough as a non-security functional quirk, matching the rubric's PASS criteria."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the search term is bound as a parameter via the `%s` placeholder and `(pattern,)` tuple, with concatenation only building the LIKE pattern value rather than SQL text, and explicitly concluded there is no SQL injection or other security vulnerability; it only noted the benign LIKE-wildcard passthrough behavior as a non-security functional quirk, which matches the rubric's PASS criteria exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the search term is bound as a parameter via the `%s` placeholder and `(pattern,)` tuple, with concatenation only building the LIKE pattern value rather than SQL text, and explicitly concluded there is no SQL injection or other security vulnerability; it only noted the benign LIKE-wildcard passthrough behavior as a non-security functional quirk, which matches the rubric's PASS criteria exactly."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI've read and analyzed the diff. Here's my security review.\n\n## Finding: No security vulnerability\n\nThe change modifies `search_articles` to filter articles by a search term using a `LIKE` clause. At first glance the pattern below looks suspicious — user input (`term`) is concatenated into a string:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nBut this is **safe**. The critical detail is *where* the concatenation goes:\n\n- `term` is concatenated only to build the **value** `%term%` — it is never spliced into the SQL string itself.\n- The SQL statement uses a `%s` **bind placeholder**, and `pattern` is passed as a **parameter** via the second argument `(pattern,)`.\n- The database driver (Django's DB-API cursor) handles escaping/binding of the parameter, so `term` cannot break out of the string literal or alter the query structure.\n\nAn input like `'; DROP TABLE articles; --` is bound as the literal search value `%'; DROP TABLE articles; --%`, not executed as SQL.\n\n### Why this is a tempting false positive\nThe combination of `\"%\" + term + \"%\"` (string concatenation) + user-controlled input + a raw `cursor.execute` SQL call pattern-matches strongly to SQL injection. The distinguishing factor is that the concatenation produces a *bound parameter*, not *SQL text*. This is the textbook-correct way to do a parameterized `LIKE` search.\n\n### Minor, non-security notes (not vulnerabilities)\n- **LIKE wildcard passthrough:** If a user includes `%` or `_` in `term`, those are treated as LIKE wildcards rather than literal characters. This is a minor functional/behavioral quirk (users can broaden their own search), not a security issue. If literal matching is desired, escape wildcards with an `ESCAPE` clause.\n\n**Conclusion:** No security issues in this diff. The change correctly uses parameterized queries and does not introduce SQL injection.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-opus-4-8"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

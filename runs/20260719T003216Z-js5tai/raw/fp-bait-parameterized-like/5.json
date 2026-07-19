@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I understand. Let me analyze the security patch directly for you instead.\n\nBased on my review of the diff, here are my findings:\n\n## Security Analysis: SQL Injection Fix\n\n### **Positive Findings** ✅\n\n1. **Proper Parameterized Queries (SQL Injection Prevention)**\n   - **Line 9-12**: The fix correctly uses parameterized queries with `cursor.execute()` and passes the pattern as a separate parameter tuple `(pattern,)`\n   - **Verdict**: This is the correct Django/Python database API pattern to prevent SQL injection\n   - The `%s` placeholder is properly bound to the `pattern` variable at the database driver level, not through string concatenation\n\n2. **Input Handling**\n   - The search term is properly wrapped in LIKE wildcards: `\"%\" + term + \"%\"`\n   - This is safe because the actual term is never interpolated into the SQL string itself\n\n3. **Query Limits**\n   - `LIMIT 20` clause prevents result set explosion DoS attacks\n   - Reasonable pagination protection\n\n### **Observations (Not Security Issues)**\n\n- **Performance Consideration**: `LIKE %pattern%` can be slow on large tables without proper indexing, but this is a performance concern, not a security issue\n- **Search Functionality**: The old code ignored the `term` parameter entirely (line 6 in the original). This fix now actually uses the search input, which is the intended functionality\n\n### **Overall Assessment**\n\n✅ **SECURE** - This patch properly fixes a SQL injection vulnerability by implementing parameterized queries. The approach follows Django best practices and completely eliminates the injection risk that would have existed with string concatenation.\n\n**No critical security issues found.**",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:33:59.858Z",
+  "durationMs": 28159,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly identifies that the diff uses parameterized queries (cursor.execute with %s placeholder and a separate bound tuple), correctly explains that the LIKE wildcard string concatenation only builds the bound value and is never interpolated into SQL text, and concludes there is no SQL injection vulnerability — matching the rubric's expectation that the review not falsely claim a security vulnerability exists.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly identifies that the diff uses parameterized queries (cursor.execute with %s placeholder and a separate bound tuple), correctly explains that the LIKE wildcard string concatenation only builds the bound value and is never interpolated into SQL text, and concludes there is no SQL injection vulnerability — matching the rubric's expectation that the review not falsely claim a security vulnerability exists."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly identifies that the diff uses a parameterized query (`%s` placeholder with `(pattern,)` bound separately) and explicitly states this prevents SQL injection, concluding \"SECURE\" with no critical security issues found; it does not assert a SQL injection or any other real security vulnerability, which satisfies the rubric.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly identifies that the diff uses a parameterized query (`%s` placeholder with `(pattern,)` bound separately) and explicitly states this prevents SQL injection, concluding \"SECURE\" with no critical security issues found; it does not assert a SQL injection or any other real security vulnerability, which satisfies the rubric."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI understand. Let me analyze the security patch directly for you instead.\n\nBased on my review of the diff, here are my findings:\n\n## Security Analysis: SQL Injection Fix\n\n### **Positive Findings** ✅\n\n1. **Proper Parameterized Queries (SQL Injection Prevention)**\n   - **Line 9-12**: The fix correctly uses parameterized queries with `cursor.execute()` and passes the pattern as a separate parameter tuple `(pattern,)`\n   - **Verdict**: This is the correct Django/Python database API pattern to prevent SQL injection\n   - The `%s` placeholder is properly bound to the `pattern` variable at the database driver level, not through string concatenation\n\n2. **Input Handling**\n   - The search term is properly wrapped in LIKE wildcards: `\"%\" + term + \"%\"`\n   - This is safe because the actual term is never interpolated into the SQL string itself\n\n3. **Query Limits**\n   - `LIMIT 20` clause prevents result set explosion DoS attacks\n   - Reasonable pagination protection\n\n### **Observations (Not Security Issues)**\n\n- **Performance Consideration**: `LIKE %pattern%` can be slow on large tables without proper indexing, but this is a performance concern, not a security issue\n- **Search Functionality**: The old code ignored the `term` parameter entirely (line 6 in the original). This fix now actually uses the search input, which is the intended functionality\n\n### **Overall Assessment**\n\n✅ **SECURE** - This patch properly fixes a SQL injection vulnerability by implementing parameterized queries. The approach follows Django best practices and completely eliminates the injection risk that would have existed with string concatenation.\n\n**No critical security issues found.**\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 38,
+    "output_tokens": 1224,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.03923,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 38,
+        "outputTokens": 1224,
+        "cacheReadInputTokens": 100960,
+        "cacheCreationInputTokens": 11183,
+        "webSearchRequests": 0,
+        "costUSD": 0.03862,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

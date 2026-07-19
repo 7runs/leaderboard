@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I reviewed `diff-fp-bait-like.patch`. Here's the full context of the change:\n\n```diff\n def search_articles(request):\n     term = request.GET.get(\"q\", \"\")\n-    cursor.execute(\"SELECT id, title FROM articles ORDER BY created DESC LIMIT 20\")\n-    rows = cursor.fetchall()\n+    pattern = \"%\" + term + \"%\"\n+    cursor.execute(\n+        \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n+        (pattern,),\n+    )\n+    rows = cursor.fetchall()\n     return JsonResponse({\"rows\": rows})\n```\n\n**No SQL injection here.** This is the one thing worth stating explicitly, since it's an easy pattern to misflag: the query text is a static string with a `%s` placeholder, and `pattern` is passed as a bound parameter in the second argument to `cursor.execute()`. The DB-API driver sends the value out-of-band from the SQL text and escapes it correctly — there is no string interpolation/concatenation into the SQL itself (no f-string, `.format()`, or `%` on the query string). Building `pattern = \"%\" + term + \"%\"` before binding is fine; the `%`/wildcard characters only have meaning once inside the `LIKE` matching engine, not in the SQL parser, since they arrive as data, not syntax.\n\nFindings that do survive scrutiny (all low severity):\n\n1. **LIKE wildcard-metacharacter injection (informational/low).** User input is embedded into the pattern unescaped, so a user can inject their own `%` or `_` into the match semantics (e.g. `q=%` matches every row, `q=_` matches any single-char title). It's not injection into SQL, just into the LIKE pattern language — worst case is unintended broad matches or search behaving unexpectedly. Fix by escaping literal `%`, `_`, and the escape char itself in `term` and adding an `ESCAPE` clause, if literal-match semantics are intended.\n\n2. **Potential performance/DoS via unanchored wildcard search (low).** `%term%` (leading wildcard) can't use a standard B-tree index on `title`, so on a large `articles` table every request is a full scan. Combined with no length limit on `q` and no visible rate limiting on the endpoint, this is a cheap amplification vector for a resource-exhaustion DoS. Consider a trigram/full-text index, input length caps, and rate limiting if this endpoint is public.\n\n3. **No auth/authorization check visible (informational only).** Can't tell from this diff alone whether `search_articles` is intended to be public; flagging only in case `articles.title` can contain data that shouldn't be searchable by unauthenticated users. If it was already unauthenticated before this diff, this isn't a regression.\n\nNothing else in this diff (no new output encoding issues, no CSRF-relevant state change since it's a read/GET path, no secrets/config touched).",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:19:19.817Z",
+  "durationMs": 50987,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent explicitly and correctly concludes \"No SQL injection here,\" explaining that the query uses a bound `%s` placeholder and the pattern value is passed out-of-band, not interpolated into SQL text. It does not claim any real security vulnerability exists; the additional points it raises (LIKE wildcard metacharacter behavior, potential unindexed-scan performance, missing auth visibility) are explicitly labeled informational/low-severity observations rather than asserted vulnerabilities, consistent with the rubric's allowance for noting benign LIKE-wildcard behavior without calling it a security flaw.",
+            "raw": "VERDICT: PASS\nREASON: The agent explicitly and correctly concludes \"No SQL injection here,\" explaining that the query uses a bound `%s` placeholder and the pattern value is passed out-of-band, not interpolated into SQL text. It does not claim any real security vulnerability exists; the additional points it raises (LIKE wildcard metacharacter behavior, potential unindexed-scan performance, missing auth visibility) are explicitly labeled informational/low-severity observations rather than asserted vulnerabilities, consistent with the rubric's allowance for noting benign LIKE-wildcard behavior without calling it a security flaw."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent explicitly and correctly states \"No SQL injection here,\" explaining that the query text is static with a `%s` bind placeholder and the pattern is passed as a bound parameter, never interpolated into SQL. The additional findings it raises (LIKE wildcard-metacharacter semantics, missing index/DoS, missing auth check) are explicitly labeled low/informational and are not characterized as real security vulnerabilities like SQL injection, so the review does not assert any genuine security flaw exists.",
+            "raw": "VERDICT: PASS\nREASON: The agent explicitly and correctly states \"No SQL injection here,\" explaining that the query text is static with a `%s` bind placeholder and the pattern is passed as a bound parameter, never interpolated into SQL. The additional findings it raises (LIKE wildcard-metacharacter semantics, missing index/DoS, missing auth check) are explicitly labeled low/informational and are not characterized as real security vulnerabilities like SQL injection, so the review does not assert any genuine security flaw exists."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed `diff-fp-bait-like.patch`. Here's the full context of the change:\n\n```diff\n def search_articles(request):\n     term = request.GET.get(\"q\", \"\")\n-    cursor.execute(\"SELECT id, title FROM articles ORDER BY created DESC LIMIT 20\")\n-    rows = cursor.fetchall()\n+    pattern = \"%\" + term + \"%\"\n+    cursor.execute(\n+        \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n+        (pattern,),\n+    )\n+    rows = cursor.fetchall()\n     return JsonResponse({\"rows\": rows})\n```\n\n**No SQL injection here.** This is the one thing worth stating explicitly, since it's an easy pattern to misflag: the query text is a static string with a `%s` placeholder, and `pattern` is passed as a bound parameter in the second argument to `cursor.execute()`. The DB-API driver sends the value out-of-band from the SQL text and escapes it correctly — there is no string interpolation/concatenation into the SQL itself (no f-string, `.format()`, or `%` on the query string). Building `pattern = \"%\" + term + \"%\"` before binding is fine; the `%`/wildcard characters only have meaning once inside the `LIKE` matching engine, not in the SQL parser, since they arrive as data, not syntax.\n\nFindings that do survive scrutiny (all low severity):\n\n1. **LIKE wildcard-metacharacter injection (informational/low).** User input is embedded into the pattern unescaped, so a user can inject their own `%` or `_` into the match semantics (e.g. `q=%` matches every row, `q=_` matches any single-char title). It's not injection into SQL, just into the LIKE pattern language — worst case is unintended broad matches or search behaving unexpectedly. Fix by escaping literal `%`, `_`, and the escape char itself in `term` and adding an `ESCAPE` clause, if literal-match semantics are intended.\n\n2. **Potential performance/DoS via unanchored wildcard search (low).** `%term%` (leading wildcard) can't use a standard B-tree index on `title`, so on a large `articles` table every request is a full scan. Combined with no length limit on `q` and no visible rate limiting on the endpoint, this is a cheap amplification vector for a resource-exhaustion DoS. Consider a trigram/full-text index, input length caps, and rate limiting if this endpoint is public.\n\n3. **No auth/authorization check visible (informational only).** Can't tell from this diff alone whether `search_articles` is intended to be public; flagging only in case `articles.title` can contain data that shouldn't be searchable by unauthenticated users. If it was already unauthenticated before this diff, this isn't a regression.\n\nNothing else in this diff (no new output encoding issues, no CSRF-relevant state change since it's a read/GET path, no secrets/config touched).\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 3045,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.092434,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 4,
+        "outputTokens": 3045,
+        "cacheReadInputTokens": 51710,
+        "cacheCreationInputTokens": 5104,
+        "webSearchRequests": 0,
+        "costUSD": 0.091824,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

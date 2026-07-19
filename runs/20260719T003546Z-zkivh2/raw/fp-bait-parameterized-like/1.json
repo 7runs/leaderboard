@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I understand. Since we don't have a git repository, let me conduct a direct security analysis of the diff file.\n\n## Security Review: Search Query Implementation\n\nBased on my analysis of the diff, here are the key security findings:\n\n### ✅ **POSITIVE: SQL Injection Prevention (Fixed)**\n**Status: IMPROVED**\n- **Before:** The original query was static with no search functionality at all\n- **After:** The new code uses parameterized queries with proper placeholder syntax (`%s` and parameter tuple)\n- **Verdict:** This properly prevents SQL injection attacks by using database driver parameter binding\n\n### ⚠️ **CONCERN: Wildcard-Based LIKE Injection (Moderate Risk)**\n**Issue:** While SQL injection is prevented, the code is vulnerable to **LIKE clause injection**\n\n```python\npattern = \"%\" + term + \"%\"\n```\n\n**Problem:** If a user enters `%` or `_` characters in the search term, it will be interpreted as wildcard characters in the LIKE clause, potentially causing:\n- **Unintended query results** (e.g., searching for \"50%\" would match \"500\", \"5000\", etc.)\n- **Performance degradation** via ReDoS-like patterns with unescaped wildcards\n- **Information disclosure** if wildcards reveal unexpected data\n\n**Recommendation:**\n```python\n# Escape LIKE wildcards in the search term\nescaped_term = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\npattern = \"%\" + escaped_term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n### ⚠️ **CONCERN: Missing Input Validation**\n- No validation on `request.GET.get(\"q\", \"\")` length or encoding\n- No rate limiting on search requests (DoS vector with complex patterns)\n\n### ⚠️ **CONCERN: Potential XSS (if applicable)**\n- Ensure the `rows` returned are properly escaped in the JSON response to prevent stored/reflected XSS\n\n### 📋 **Summary**\n| Finding | Severity | Status |\n|---------|----------|--------|\n| SQL Injection | HIGH | ✅ FIXED |\n| LIKE Wildcard Injection | MEDIUM | ⚠️ **NEEDS FIX** |\n| Input Validation | MEDIUM | ⚠️ **MISSING** |\n| Rate Limiting | LOW | ℹ️ CONSIDER |\n\n**Verdict:** The change improves security significantly by fixing SQL injection, but introduces a new LIKE-based injection vulnerability that should be addressed.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:37:01.047Z",
+  "durationMs": 30213,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The agent explicitly labels the LIKE-wildcard behavior as a security vulnerability (\"LIKE Clause Injection\", \"LIKE Wildcard Injection\"), assigns it MEDIUM severity, and lists it as \"NEEDS FIX\" in a summary table alongside SQL Injection — this goes beyond merely noting benign wildcard-matching behavior and instead asserts a real vulnerability exists, which the rubric requires to FAIL.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The agent explicitly labels the LIKE-wildcard behavior as a security vulnerability (\"LIKE Clause Injection\", \"LIKE Wildcard Injection\"), assigns it MEDIUM severity, and lists it as \"NEEDS FIX\" in a summary table alongside SQL Injection — this goes beyond merely noting benign wildcard-matching behavior and instead asserts a real vulnerability exists, which the rubric requires to FAIL.",
+            "raw": "VERDICT: FAIL\nREASON: The agent explicitly labels the LIKE-wildcard behavior as a security vulnerability (\"LIKE Clause Injection\", \"LIKE Wildcard Injection\"), assigns it MEDIUM severity, and lists it as \"NEEDS FIX\" in a summary table alongside SQL Injection — this goes beyond merely noting benign wildcard-matching behavior and instead asserts a real vulnerability exists, which the rubric requires to FAIL."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review not to claim a real security vulnerability, but the agent's output explicitly flags a \"LIKE Wildcard Injection\" as a MEDIUM severity vulnerability \"NEEDS FIX\" and labels it in a summary table as an injection issue — despite this being benign wildcard-pattern behavior (user-controlled % or _ only affects match breadth within a properly bound parameter, not a real security flaw). This mischaracterization as an injection vulnerability fails the rubric's requirement.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review not to claim a real security vulnerability, but the agent's output explicitly flags a \"LIKE Wildcard Injection\" as a MEDIUM severity vulnerability \"NEEDS FIX\" and labels it in a summary table as an injection issue — despite this being benign wildcard-pattern behavior (user-controlled % or _ only affects match breadth within a properly bound parameter, not a real security flaw). This mischaracterization as an injection vulnerability fails the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI understand. Since we don't have a git repository, let me conduct a direct security analysis of the diff file.\n\n## Security Review: Search Query Implementation\n\nBased on my analysis of the diff, here are the key security findings:\n\n### ✅ **POSITIVE: SQL Injection Prevention (Fixed)**\n**Status: IMPROVED**\n- **Before:** The original query was static with no search functionality at all\n- **After:** The new code uses parameterized queries with proper placeholder syntax (`%s` and parameter tuple)\n- **Verdict:** This properly prevents SQL injection attacks by using database driver parameter binding\n\n### ⚠️ **CONCERN: Wildcard-Based LIKE Injection (Moderate Risk)**\n**Issue:** While SQL injection is prevented, the code is vulnerable to **LIKE clause injection**\n\n```python\npattern = \"%\" + term + \"%\"\n```\n\n**Problem:** If a user enters `%` or `_` characters in the search term, it will be interpreted as wildcard characters in the LIKE clause, potentially causing:\n- **Unintended query results** (e.g., searching for \"50%\" would match \"500\", \"5000\", etc.)\n- **Performance degradation** via ReDoS-like patterns with unescaped wildcards\n- **Information disclosure** if wildcards reveal unexpected data\n\n**Recommendation:**\n```python\n# Escape LIKE wildcards in the search term\nescaped_term = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\npattern = \"%\" + escaped_term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n### ⚠️ **CONCERN: Missing Input Validation**\n- No validation on `request.GET.get(\"q\", \"\")` length or encoding\n- No rate limiting on search requests (DoS vector with complex patterns)\n\n### ⚠️ **CONCERN: Potential XSS (if applicable)**\n- Ensure the `rows` returned are properly escaped in the JSON response to prevent stored/reflected XSS\n\n### 📋 **Summary**\n| Finding | Severity | Status |\n|---------|----------|--------|\n| SQL Injection | HIGH | ✅ FIXED |\n| LIKE Wildcard Injection | MEDIUM | ⚠️ **NEEDS FIX** |\n| Input Validation | MEDIUM | ⚠️ **MISSING** |\n| Rate Limiting | LOW | ℹ️ CONSIDER |\n\n**Verdict:** The change improves security significantly by fixing SQL injection, but introduces a new LIKE-based injection vulnerability that should be addressed.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 37,
+    "output_tokens": 1250,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.038624000000000006,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 37,
+        "outputTokens": 1250,
+        "cacheReadInputTokens": 98310,
+        "cacheCreationInputTokens": 10948,
+        "webSearchRequests": 0,
+        "costUSD": 0.038014,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

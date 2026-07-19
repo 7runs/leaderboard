@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review Summary\n\nI've identified **5 critical security findings** in this diff. Here's the detailed analysis:\n\n### 🔴 **Critical Issues**\n\n**1. LIKE Metacharacter Injection** (Line 8)\n- The pattern is built via string concatenation: `pattern = \"%\" + term + \"%\"`. This treats user input as part of SQL LIKE syntax.\n- **Attack**: If attacker submits `%` or `_` in the search term, these are interpreted as LIKE wildcards, not literals.\n- **Fix**: Use proper LIKE escaping or switch to full-text search:\n  ```python\n  pattern = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n  cursor.execute(\n      \"SELECT ... WHERE title LIKE %s ESCAPE '\\\\' ...\",\n      (pattern,)\n  )\n  ```\n\n**2. Missing Input Validation**\n- No length limits, type checks, or content restrictions on `term`\n- **Attack**: Extremely long strings (millions of chars) cause DoS via DB resource exhaustion or memory issues\n- **Fix**: Add bounds checking:\n  ```python\n  term = request.GET.get(\"q\", \"\").strip()\n  if len(term) > 100 or not term:\n      return JsonResponse({\"error\": \"Invalid search term\"}, status=400)\n  ```\n\n**3. No Authentication/Authorization** (Line 3)\n- Endpoint is publicly accessible without permission checks\n- **Attack**: Unauthenticated users enumerate and access all articles\n- **Fix**: Add `@login_required` or custom permission decorator\n\n**4. Information Disclosure** (Line 14)\n- Raw database rows leaked without field filtering\n- **Attack**: Exposes internal IDs, timestamps, and metadata; reveals restricted content\n- **Fix**: Explicitly select and filter fields, enforce content visibility:\n  ```python\n  rows = [{k: v for k, v in row.items() if k in ['id', 'title']} for row in rows]\n  ```\n\n**5. Unvalidated Database Input**\n- While parameterized queries prevent SQL injection, the underlying `term` variable still carries risk\n- The patch improves the original but doesn't fully address the threat model\n\n### 📋 **Recommendations**\n1. **Escape LIKE metacharacters** or use full-text search instead\n2. **Validate input**: length (≤100 chars), non-empty, alphanumeric/whitespace only\n3. **Add authentication** with permission checks\n4. **Sanitize output**: return only necessary fields\n5. **Add rate limiting** to prevent search DoS attacks\n6. **Log query attempts** for audit trails\n\nThe parameterization in the patch is a **step forward** but insufficient—this endpoint remains exploitable.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:37:31.261Z",
+  "durationMs": 41364,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent explicitly claims the parameterization is \"insufficient,\" labels the LIKE metacharacter behavior a critical security finding requiring escaping, and asserts the endpoint \"remains exploitable\" — treating benign LIKE-wildcard behavior as a real vulnerability rather than correctly recognizing the bound-parameter query as safe from injection.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent explicitly claims the parameterization is \"insufficient,\" labels the LIKE metacharacter behavior a critical security finding requiring escaping, and asserts the endpoint \"remains exploitable\" — treating benign LIKE-wildcard behavior as a real vulnerability rather than correctly recognizing the bound-parameter query as safe from injection.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent explicitly claims the parameterization is \"insufficient,\" labels the LIKE metacharacter behavior a critical security finding requiring escaping, and asserts the endpoint \"remains exploitable\" — treating benign LIKE-wildcard behavior as a real vulnerability rather than correctly recognizing the bound-parameter query as safe from injection."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output claims multiple critical security vulnerabilities exist (LIKE metacharacter injection, missing input validation/DoS, missing auth, information disclosure) and explicitly states \"this endpoint remains exploitable\" — treating the parameterized query as insufficient protection despite it being safe from injection.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output claims multiple critical security vulnerabilities exist (LIKE metacharacter injection, missing input validation/DoS, missing auth, information disclosure) and explicitly states \"this endpoint remains exploitable\" — treating the parameterized query as insufficient protection despite it being safe from injection."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nI've identified **5 critical security findings** in this diff. Here's the detailed analysis:\n\n### 🔴 **Critical Issues**\n\n**1. LIKE Metacharacter Injection** (Line 8)\n- The pattern is built via string concatenation: `pattern = \"%\" + term + \"%\"`. This treats user input as part of SQL LIKE syntax.\n- **Attack**: If attacker submits `%` or `_` in the search term, these are interpreted as LIKE wildcards, not literals.\n- **Fix**: Use proper LIKE escaping or switch to full-text search:\n  ```python\n  pattern = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n  cursor.execute(\n      \"SELECT ... WHERE title LIKE %s ESCAPE '\\\\' ...\",\n      (pattern,)\n  )\n  ```\n\n**2. Missing Input Validation**\n- No length limits, type checks, or content restrictions on `term`\n- **Attack**: Extremely long strings (millions of chars) cause DoS via DB resource exhaustion or memory issues\n- **Fix**: Add bounds checking:\n  ```python\n  term = request.GET.get(\"q\", \"\").strip()\n  if len(term) > 100 or not term:\n      return JsonResponse({\"error\": \"Invalid search term\"}, status=400)\n  ```\n\n**3. No Authentication/Authorization** (Line 3)\n- Endpoint is publicly accessible without permission checks\n- **Attack**: Unauthenticated users enumerate and access all articles\n- **Fix**: Add `@login_required` or custom permission decorator\n\n**4. Information Disclosure** (Line 14)\n- Raw database rows leaked without field filtering\n- **Attack**: Exposes internal IDs, timestamps, and metadata; reveals restricted content\n- **Fix**: Explicitly select and filter fields, enforce content visibility:\n  ```python\n  rows = [{k: v for k, v in row.items() if k in ['id', 'title']} for row in rows]\n  ```\n\n**5. Unvalidated Database Input**\n- While parameterized queries prevent SQL injection, the underlying `term` variable still carries risk\n- The patch improves the original but doesn't fully address the threat model\n\n### 📋 **Recommendations**\n1. **Escape LIKE metacharacters** or use full-text search instead\n2. **Validate input**: length (≤100 chars), non-empty, alphanumeric/whitespace only\n3. **Add authentication** with permission checks\n4. **Sanitize output**: return only necessary fields\n5. **Add rate limiting** to prevent search DoS attacks\n6. **Log query attempts** for audit trails\n\nThe parameterization in the patch is a **step forward** but insufficient—this endpoint remains exploitable.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 39,
+    "output_tokens": 2614,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.044305199999999996,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 39,
+        "outputTokens": 2614,
+        "cacheReadInputTokens": 126882,
+        "cacheCreationInputTokens": 8949,
+        "webSearchRequests": 0,
+        "costUSD": 0.0436952,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

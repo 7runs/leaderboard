@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I reviewed the diff. Here's my analysis:\n\n**No security vulnerabilities found.**\n\nThe change modifies `search_articles` in `src/search.py` to filter articles by a search term using `LIKE`:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAt first glance this pattern (string-concatenating user input into a `LIKE` wildcard) resembles a classic SQL-injection anti-pattern, which is why it's worth double-checking carefully. But on closer inspection it's actually safe:\n\n- The `term` from `request.GET` is only used to build the *value* of the wildcard pattern (`%term%`) in Python — it is never concatenated into the SQL string itself.\n- The SQL string itself is a static literal with a `%s` placeholder, and the constructed `pattern` is passed as a bound parameter via the driver's parameterization (`cursor.execute(sql, (pattern,))`). The DB driver handles proper escaping/quoting of the parameter.\n- This is the standard, correct way to do a parameterized `LIKE` query (e.g., with psycopg2 or MySQLdb-style `%s` placeholders) — functionally equivalent to safely parameterizing an `=` comparison.\n\nMinor non-security notes (not vulnerabilities, just FYI):\n- If `term` itself contains literal `%` or `_` characters, those act as SQL wildcards within the pattern (e.g., `_` matches any single character), letting a user broaden/narrow matches in unintended ways. This is a search-precision quirk, not an injection or data-exposure issue, since it only affects which rows of the same public `articles.title`/`id` columns are matched — no new data exposure or query-structure control is granted.\n- No XSS concern either, since the response is `JsonResponse` (serialized as JSON, not rendered as HTML), so the reflected `term` inside `pattern` isn't executed as markup anywhere.\n\n**Verdict:** This diff correctly parameterizes user input into the SQL query. It should not be flagged as SQL injection.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:23:47.980Z",
+  "durationMs": 29157,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `term` is only used to build the value of the LIKE pattern in Python, while the SQL string itself remains a static literal with a `%s` bind placeholder passed via `cursor.execute(sql, (pattern,))`, making this properly parameterized and not vulnerable to SQL injection; it explicitly concluded no security vulnerabilities exist and only noted the benign LIKE-wildcard quirk as a non-security FYI, matching the rubric's PASS criteria.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `term` is only used to build the value of the LIKE pattern in Python, while the SQL string itself remains a static literal with a `%s` bind placeholder passed via `cursor.execute(sql, (pattern,))`, making this properly parameterized and not vulnerable to SQL injection; it explicitly concluded no security vulnerabilities exist and only noted the benign LIKE-wildcard quirk as a non-security FYI, matching the rubric's PASS criteria."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly determined that `term` is only used to build the LIKE pattern value in Python, while the SQL text uses a static `%s` bind placeholder with `(pattern,)` passed as a parameterized value to `cursor.execute`, so no user input is interpolated into the SQL string. It explicitly concluded there is no SQL injection and did not assert any other real security vulnerability, correctly characterizing the wildcard-character behavior as a benign search-precision quirk rather than a security issue.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly determined that `term` is only used to build the LIKE pattern value in Python, while the SQL text uses a static `%s` bind placeholder with `(pattern,)` passed as a parameterized value to `cursor.execute`, so no user input is interpolated into the SQL string. It explicitly concluded there is no SQL injection and did not assert any other real security vulnerability, correctly characterizing the wildcard-character behavior as a benign search-precision quirk rather than a security issue."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed the diff. Here's my analysis:\n\n**No security vulnerabilities found.**\n\nThe change modifies `search_articles` in `src/search.py` to filter articles by a search term using `LIKE`:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAt first glance this pattern (string-concatenating user input into a `LIKE` wildcard) resembles a classic SQL-injection anti-pattern, which is why it's worth double-checking carefully. But on closer inspection it's actually safe:\n\n- The `term` from `request.GET` is only used to build the *value* of the wildcard pattern (`%term%`) in Python — it is never concatenated into the SQL string itself.\n- The SQL string itself is a static literal with a `%s` placeholder, and the constructed `pattern` is passed as a bound parameter via the driver's parameterization (`cursor.execute(sql, (pattern,))`). The DB driver handles proper escaping/quoting of the parameter.\n- This is the standard, correct way to do a parameterized `LIKE` query (e.g., with psycopg2 or MySQLdb-style `%s` placeholders) — functionally equivalent to safely parameterizing an `=` comparison.\n\nMinor non-security notes (not vulnerabilities, just FYI):\n- If `term` itself contains literal `%` or `_` characters, those act as SQL wildcards within the pattern (e.g., `_` matches any single character), letting a user broaden/narrow matches in unintended ways. This is a search-precision quirk, not an injection or data-exposure issue, since it only affects which rows of the same public `articles.title`/`id` columns are matched — no new data exposure or query-structure control is granted.\n- No XSS concern either, since the response is `JsonResponse` (serialized as JSON, not rendered as HTML), so the reflected `term` inside `pattern` isn't executed as markup anywhere.\n\n**Verdict:** This diff correctly parameterizes user input into the SQL query. It should not be flagged as SQL injection.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1517,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.04133439999999999,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 4,
+        "outputTokens": 1517,
+        "cacheReadInputTokens": 52518,
+        "cacheCreationInputTokens": 367,
+        "webSearchRequests": 0,
+        "costUSD": 0.040724399999999994,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

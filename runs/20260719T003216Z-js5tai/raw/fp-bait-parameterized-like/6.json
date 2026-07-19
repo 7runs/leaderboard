@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I see the issue — `/security-review` requires a git repository context. However, I have the patch file visible and can provide you with a direct security analysis. Let me review this diff for security issues:\n\n## Security Review: SQL Injection Vulnerability Fix\n\n### Summary\nThis diff represents a **POSITIVE SECURITY IMPROVEMENT** that fixes a critical SQL injection vulnerability.\n\n### Finding Details\n\n**Original Code (Lines 6-7):**\n```python\ncursor.execute(\"SELECT id, title FROM articles ORDER BY created DESC LIMIT 20\")\nrows = cursor.fetchall()\n```\n\n**Issues with Original Code:**\n1. ✅ **Not directly vulnerable** to SQL injection since `term` isn't embedded in the query\n2. ⚠️ **Logic bug**: The search parameter `term` is retrieved but never used in the query\n3. ❌ **Incomplete functionality**: Query returns all articles regardless of search input\n\n### New Code (Lines 8-12):**\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\nrows = cursor.fetchall()\n```\n\n**Security Improvements:**\n1. ✅ **Parameterized Query**: Uses `%s` placeholder with tuple parameter `(pattern,)` — the correct approach to prevent SQL injection\n2. ✅ **Input Handling**: Search parameter is properly escaped through the database driver's parameterization mechanism\n3. ✅ **Functional Fix**: Now correctly implements search filtering by title\n\n### Verdict: **SECURE** ✅\n\n**No security vulnerabilities found.** This is a well-implemented fix that:\n- Follows OWASP SQL injection prevention best practices\n- Uses the database driver's built-in parameterization (proper defense-in-depth)\n- Maintains the principle of least privilege\n- Is compatible with Django's ORM security model\n\n**Recommendation:** Approve and merge. This change improves both security and functionality.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:34:08.335Z",
+  "durationMs": 28285,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly concludes the query is safe, explicitly identifying the use of a parameterized query (`%s` placeholder with `(pattern,)` bound value) as the correct SQL injection prevention mechanism, and does not assert that a SQL injection or any other real security vulnerability exists.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly concludes the query is safe, explicitly identifying the use of a parameterized query (`%s` placeholder with `(pattern,)` bound value) as the correct SQL injection prevention mechanism, and does not assert that a SQL injection or any other real security vulnerability exists."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly identifies that the `term` parameter is passed as a bound value via the `%s` DB-API placeholder with `(pattern,)`, explicitly recognizing this as proper parameterization that prevents SQL injection, and it does not assert a SQL injection or any other real security vulnerability exists in the new code — the final verdict is \"SECURE\" with no vulnerabilities found, matching the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly identifies that the `term` parameter is passed as a bound value via the `%s` DB-API placeholder with `(pattern,)`, explicitly recognizing this as proper parameterization that prevents SQL injection, and it does not assert a SQL injection or any other real security vulnerability exists in the new code — the final verdict is \"SECURE\" with no vulnerabilities found, matching the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI see the issue — `/security-review` requires a git repository context. However, I have the patch file visible and can provide you with a direct security analysis. Let me review this diff for security issues:\n\n## Security Review: SQL Injection Vulnerability Fix\n\n### Summary\nThis diff represents a **POSITIVE SECURITY IMPROVEMENT** that fixes a critical SQL injection vulnerability.\n\n### Finding Details\n\n**Original Code (Lines 6-7):**\n```python\ncursor.execute(\"SELECT id, title FROM articles ORDER BY created DESC LIMIT 20\")\nrows = cursor.fetchall()\n```\n\n**Issues with Original Code:**\n1. ✅ **Not directly vulnerable** to SQL injection since `term` isn't embedded in the query\n2. ⚠️ **Logic bug**: The search parameter `term` is retrieved but never used in the query\n3. ❌ **Incomplete functionality**: Query returns all articles regardless of search input\n\n### New Code (Lines 8-12):**\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\nrows = cursor.fetchall()\n```\n\n**Security Improvements:**\n1. ✅ **Parameterized Query**: Uses `%s` placeholder with tuple parameter `(pattern,)` — the correct approach to prevent SQL injection\n2. ✅ **Input Handling**: Search parameter is properly escaped through the database driver's parameterization mechanism\n3. ✅ **Functional Fix**: Now correctly implements search filtering by title\n\n### Verdict: **SECURE** ✅\n\n**No security vulnerabilities found.** This is a well-implemented fix that:\n- Follows OWASP SQL injection prevention best practices\n- Uses the database driver's built-in parameterization (proper defense-in-depth)\n- Maintains the principle of least privilege\n- Is compatible with Django's ORM security model\n\n**Recommendation:** Approve and merge. This change improves both security and functionality.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 37,
+    "output_tokens": 1373,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.0407936,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 37,
+        "outputTokens": 1373,
+        "cacheReadInputTokens": 100516,
+        "cacheCreationInputTokens": 11615,
+        "webSearchRequests": 0,
+        "costUSD": 0.0401836,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

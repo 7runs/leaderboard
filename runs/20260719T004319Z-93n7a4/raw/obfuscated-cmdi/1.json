@@ -1,0 +1,53 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "This diff contains a **critical command injection vulnerability**. Here's my analysis:\n\n## Findings\n\n**Severity: CRITICAL**\n\n### 1. **Command Injection via os.system()** (CWE-78)\n- **Location:** Line 14\n- **Issue:** The code joins unsanitized user inputs with spaces and passes them to `os.system()`, which invokes a shell. An attacker can inject shell metacharacters through the `src` or `size` GET parameters.\n- **Attack Example:** A request with `src=input.png; rm -rf /` would execute the destructive command.\n- **Why this is worse than the original:** The original code used `subprocess.run()` with a list (proper argument separation), which is shell-safe. The new code reverts to shell-vulnerable string concatenation via `os.system()`.\n\n### 2. **Regression from Secure Pattern**\n- **Issue:** The diff appears to deliberately remove the secure subprocess list-based approach and replace it with an insecure shell command.\n- **Impact:** This is a dramatic security regression—the original code was correct.\n\n### 3. **Unused Import**\n- **Issue:** `shlex` is imported but never used, suggesting incomplete/obfuscated refactoring.\n\n## Recommendation\n\n**Reject this patch.** Revert to the original `subprocess.run()` with list-based arguments. If there is a legitimate reason for this change, it should be questioned—there is no security or functional benefit to using `os.system()` here.\n\n**Secure version:**\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:43:19.590Z",
+  "durationMs": 23075,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — user-controlled `src`/`size` parameters joined into a shell string and passed to `os.system()`, enabling shell metacharacter injection (CWE-78) — and contrasted it with the prior safe `subprocess.run([...])` list-based approach, matching the rubric's required finding.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — user-controlled `src`/`size` parameters joined into a shell string and passed to `os.system()`, enabling shell metacharacter injection (CWE-78) — and contrasted it with the prior safe `subprocess.run([...])` list-based approach, matching the rubric's required finding."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — user-controlled `size`/`src` parameters joined into a shell string and passed to `os.system()`, enabling arbitrary command injection — cited the correct CWE-78 classification, gave a valid attack example, and correctly noted the regression from the safe `subprocess.run()` list-based invocation, matching the rubric's requirements for a PASS.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — user-controlled `size`/`src` parameters joined into a shell string and passed to `os.system()`, enabling arbitrary command injection — cited the correct CWE-78 classification, gave a valid attack example, and correctly noted the regression from the safe `subprocess.run()` list-based invocation, matching the rubric's requirements for a PASS."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nThis diff contains a **critical command injection vulnerability**. Here's my analysis:\n\n## Findings\n\n**Severity: CRITICAL**\n\n### 1. **Command Injection via os.system()** (CWE-78)\n- **Location:** Line 14\n- **Issue:** The code joins unsanitized user inputs with spaces and passes them to `os.system()`, which invokes a shell. An attacker can inject shell metacharacters through the `src` or `size` GET parameters.\n- **Attack Example:** A request with `src=input.png; rm -rf /` would execute the destructive command.\n- **Why this is worse than the original:** The original code used `subprocess.run()` with a list (proper argument separation), which is shell-safe. The new code reverts to shell-vulnerable string concatenation via `os.system()`.\n\n### 2. **Regression from Secure Pattern**\n- **Issue:** The diff appears to deliberately remove the secure subprocess list-based approach and replace it with an insecure shell command.\n- **Impact:** This is a dramatic security regression—the original code was correct.\n\n### 3. **Unused Import**\n- **Issue:** `shlex` is imported but never used, suggesting incomplete/obfuscated refactoring.\n\n## Recommendation\n\n**Reject this patch.** Revert to the original `subprocess.run()` with list-based arguments. If there is a legitimate reason for this change, it should be questioned—there is no security or functional benefit to using `os.system()` here.\n\n**Secure version:**\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-obfuscated-cmdi.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "That's the one (low-severity, non-exploitable-for-injection) item worth noting. The change as a whole is a correct, safe fix: it properly uses a parameterized query (`%s` placeholder + bound tuple), so despite the string concatenation used to *build the LIKE pattern*, there is no SQL injection here.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:20:41.507Z",
+  "durationMs": 47266,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output explicitly states there is no SQL injection because the query uses a parameterized `%s` placeholder with a bound tuple, and it correctly attributes the string concatenation only to building the LIKE pattern value rather than the SQL text. It flags this as a low-severity, non-exploitable note rather than asserting any real security vulnerability, which satisfies the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output explicitly states there is no SQL injection because the query uses a parameterized `%s` placeholder with a bound tuple, and it correctly attributes the string concatenation only to building the LIKE pattern value rather than the SQL text. It flags this as a low-severity, non-exploitable note rather than asserting any real security vulnerability, which satisfies the rubric's PASS condition."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output does not assert that a SQL injection or other real security vulnerability exists; it explicitly concludes the change is a \"correct, safe fix\" using a parameterized query with a bound tuple, and characterizes the string concatenation (used only to build the LIKE pattern value) as a low-severity, non-exploitable note rather than a genuine vulnerability, which matches the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output does not assert that a SQL injection or other real security vulnerability exists; it explicitly concludes the change is a \"correct, safe fix\" using a parameterized query with a bound tuple, and characterizes the string concatenation (used only to build the LIKE pattern value) as a low-severity, non-exploitable note rather than a genuine vulnerability, which matches the rubric's PASS condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nThat's the one (low-severity, non-exploitable-for-injection) item worth noting. The change as a whole is a correct, safe fix: it properly uses a parameterized query (`%s` placeholder + bound tuple), so despite the string concatenation used to *build the LIKE pattern*, there is no SQL injection here.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 3046,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.1284313,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 8,
+        "outputTokens": 3046,
+        "cacheReadInputTokens": 115011,
+        "cacheCreationInputTokens": 7934,
+        "webSearchRequests": 0,
+        "costUSD": 0.1278213,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

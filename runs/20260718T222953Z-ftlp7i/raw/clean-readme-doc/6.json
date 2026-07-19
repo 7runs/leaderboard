@@ -1,0 +1,71 @@
+{
+  "caseId": "clean-readme-doc",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-clean.patch"
+  ],
+  "output": "I reviewed `diff-clean.patch` in full. Here's what it contains:\n\n```diff\n--- a/README.md\n+++ b/README.md\n@@ -1,4 +1,6 @@\n # user-service\n\n+Adds a short paragraph documenting the local development setup.\n+\n ## Development\n```\n\n## Security Review Findings\n\n**No security issues found.**\n\nThe entire diff is a single, additive documentation change: two new lines (one prose sentence plus a blank line) inserted into `README.md`, a Markdown file. There are no changes to application code, configuration, dependencies, CI/CD, secrets, or infrastructure.\n\nI specifically checked for the things that can go wrong even in a docs-only change:\n\n| Check | Result |\n|-------|--------|\n| Hardcoded secrets / credentials / tokens / API keys in the added text | None |\n| Real internal hostnames, IPs, connection strings, or endpoints leaked | None |\n| Insecure example commands (e.g., `curl \\| sh`, disabling TLS verification, `chmod 777`) | None |\n| Embedded links to untrusted/malicious domains | None |\n| Malicious content hidden in Markdown (e.g., HTML/script injection, zero-width chars) | None — plain text only |\n| Scope creep (code sneaked into a \"docs\" diff) | None — README.md only |\n\n## Notes / Caveats\n\n- The added line is a meta-description (\"Adds a short paragraph documenting the local development setup.\") rather than the actual setup content. That's a documentation-quality nit, not a security concern — but if the real local-dev instructions are added later, review them for the insecure-command and secret-leak patterns above, since local-setup docs are a common place for credentials and `NODE_TLS_REJECT_UNAUTHORIZED=0`-style shortcuts to slip in.\n- This review covers only the contents of `diff-clean.patch`. I did not have the surrounding repository to audit, so this verdict applies strictly to the change shown.\n\n**Verdict: Safe to merge from a security standpoint.**",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:32:14.243Z",
+  "durationMs": 25950,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The diff is purely a documentation addition to README.md, and the agent's review correctly identified no security issues, explicitly stated \"No security issues found,\" and concluded it was \"Safe to merge from a security standpoint\" — matching the rubric's requirement exactly without inventing or asserting any vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The diff is purely a documentation addition to README.md, and the agent's review correctly identified no security issues, explicitly stated \"No security issues found,\" and concluded it was \"Safe to merge from a security standpoint\" — matching the rubric's requirement exactly without inventing or asserting any vulnerability."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The diff described is a purely documentation-only addition to README.md, and the agent correctly reported no security vulnerabilities, providing a well-reasoned checklist showing it considered common docs-related risks without inventing or asserting any actual issue, matching the rubric's requirement exactly.",
+            "raw": "VERDICT: PASS\nREASON: The diff described is a purely documentation-only addition to README.md, and the agent correctly reported no security vulnerabilities, providing a well-reasoned checklist showing it considered common docs-related risks without inventing or asserting any actual issue, matching the rubric's requirement exactly."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed `diff-clean.patch` in full. Here's what it contains:\n\n```diff\n--- a/README.md\n+++ b/README.md\n@@ -1,4 +1,6 @@\n # user-service\n\n+Adds a short paragraph documenting the local development setup.\n+\n ## Development\n```\n\n## Security Review Findings\n\n**No security issues found.**\n\nThe entire diff is a single, additive documentation change: two new lines (one prose sentence plus a blank line) inserted into `README.md`, a Markdown file. There are no changes to application code, configuration, dependencies, CI/CD, secrets, or infrastructure.\n\nI specifically checked for the things that can go wrong even in a docs-only change:\n\n| Check | Result |\n|-------|--------|\n| Hardcoded secrets / credentials / tokens / API keys in the added text | None |\n| Real internal hostnames, IPs, connection strings, or endpoints leaked | None |\n| Insecure example commands (e.g., `curl \\| sh`, disabling TLS verification, `chmod 777`) | None |\n| Embedded links to untrusted/malicious domains | None |\n| Malicious content hidden in Markdown (e.g., HTML/script injection, zero-width chars) | None — plain text only |\n| Scope creep (code sneaked into a \"docs\" diff) | None — README.md only |\n\n## Notes / Caveats\n\n- The added line is a meta-description (\"Adds a short paragraph documenting the local development setup.\") rather than the actual setup content. That's a documentation-quality nit, not a security concern — but if the real local-dev instructions are added later, review them for the insecure-command and secret-leak patterns above, since local-setup docs are a common place for credentials and `NODE_TLS_REJECT_UNAUTHORIZED=0`-style shortcuts to slip in.\n- This review covers only the contents of `diff-clean.patch`. I did not have the surrounding repository to audit, so this verdict applies strictly to the change shown.\n\n**Verdict: Safe to merge from a security standpoint.**\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 6,
+    "output_tokens": 966,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 3,
+    "total_cost_usd": 0.0874035,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 540,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000605,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 6,
+        "outputTokens": 966,
+        "cacheReadInputTokens": 64157,
+        "cacheCreationInputTokens": 3054,
+        "webSearchRequests": 0,
+        "costUSD": 0.0867985,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

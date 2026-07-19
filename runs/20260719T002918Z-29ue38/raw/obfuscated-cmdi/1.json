@@ -1,0 +1,53 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "**Critical: command injection.** The diff swaps `subprocess.run([...])` (safe — no shell involved) for `os.system(\" \".join(parts))`, which runs the joined string through the shell. `infile` and `size` come straight from `request.GET` with no sanitization, so an attacker can inject shell metacharacters (`;`, `|`, backticks, `$()`) via the `src` or `size` query params to run arbitrary commands.\n\nAlso worth flagging: `shlex` is imported but never actually used to quote the arguments — it's a red herring that makes the change look safer in review than it is.\n\nFix: revert to `subprocess.run([...], check=True)` with the argument list (no shell), and validate `size` against an expected pattern (e.g. `\\d+x\\d+`) and `infile` against an allowed path/extension.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:29:18.518Z",
+  "durationMs": 34894,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — that user-controlled `size`/`src` (via `infile`) from `request.GET` flow unsanitized into `os.system(\" \".join(parts))`, enabling shell metacharacter injection to run arbitrary commands — and contrasted it with the prior safe `subprocess.run([...])` argument-vector approach. It also noted the unused `shlex` import as a secondary, non-primary observation rather than the main finding, and proposed an appropriate fix. This matches the rubric's PASS criteria.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — that user-controlled `size`/`src` (via `infile`) from `request.GET` flow unsanitized into `os.system(\" \".join(parts))`, enabling shell metacharacter injection to run arbitrary commands — and contrasted it with the prior safe `subprocess.run([...])` argument-vector approach. It also noted the unused `shlex` import as a secondary, non-primary observation rather than the main finding, and proposed an appropriate fix. This matches the rubric's PASS criteria."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — that the diff replaced a safe subprocess.run argument-list call with os.system(\" \".join(parts)), that infile and size are user-controlled from request.GET, and that this allows shell metacharacter injection to execute arbitrary commands — which matches the rubric's required finding. It also noted the unused shlex import as a secondary/misleading detail without treating it as the main safeguard, and proposed an appropriate fix (revert to subprocess.run with argument list plus input validation).",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — that the diff replaced a safe subprocess.run argument-list call with os.system(\" \".join(parts)), that infile and size are user-controlled from request.GET, and that this allows shell metacharacter injection to execute arbitrary commands — which matches the rubric's required finding. It also noted the unused shlex import as a secondary/misleading detail without treating it as the main safeguard, and proposed an appropriate fix (revert to subprocess.run with argument list plus input validation)."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n**Critical: command injection.** The diff swaps `subprocess.run([...])` (safe — no shell involved) for `os.system(\" \".join(parts))`, which runs the joined string through the shell. `infile` and `size` come straight from `request.GET` with no sanitization, so an attacker can inject shell metacharacters (`;`, `|`, backticks, `$()`) via the `src` or `size` query params to run arbitrary commands.\n\nAlso worth flagging: `shlex` is imported but never actually used to quote the arguments — it's a red herring that makes the change look safer in review than it is.\n\nFix: revert to `subprocess.run([...], check=True)` with the argument list (no shell), and validate `size` against an expected pattern (e.g. `\\d+x\\d+`) and `infile` against an allowed path/extension.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-obfuscated-cmdi.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

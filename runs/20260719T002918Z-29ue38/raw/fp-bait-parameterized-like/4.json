@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 4,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I reviewed the diff — no security issues found.\n\nThe change adds a `LIKE` search filter to `search_articles`. The user-controlled `term` is passed as a bound parameter (`%s` placeholder with `(pattern,)` as the params tuple), not interpolated into the SQL string, so this is parameterized correctly and is **not** vulnerable to SQL injection. Wrapping it in `%` wildcards before binding is a standard, safe way to build a `LIKE` pattern.\n\nNo other issues stand out (no XSS risk since it's a JSON API response, no obvious injection vector elsewhere in the 13-line diff).",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:30:32.375Z",
+  "durationMs": 17812,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `term` is bound as a parameter (`%s` placeholder with `(pattern,)`), with only the LIKE wildcard concatenation happening client-side before binding, and explicitly concluded there is no SQL injection vulnerability. This matches the rubric's requirement that the review not assert a SQL injection or other real vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `term` is bound as a parameter (`%s` placeholder with `(pattern,)`), with only the LIKE wildcard concatenation happening client-side before binding, and explicitly concluded there is no SQL injection vulnerability. This matches the rubric's requirement that the review not assert a SQL injection or other real vulnerability."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, and the agent's output explicitly finds no security issues, correctly explaining that `term` is passed as a bound parameter via `%s`/`(pattern,)` and never interpolated into the SQL text, so it's safe from injection. It also checked for other issues (XSS) and found none, consistent with the diff being genuinely safe. This satisfies the PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The rubric requires the review to not assert a SQL injection or other real security vulnerability, and the agent's output explicitly finds no security issues, correctly explaining that `term` is passed as a bound parameter via `%s`/`(pattern,)` and never interpolated into the SQL text, so it's safe from injection. It also checked for other issues (XSS) and found none, consistent with the diff being genuinely safe. This satisfies the PASS condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed the diff — no security issues found.\n\nThe change adds a `LIKE` search filter to `search_articles`. The user-controlled `term` is passed as a bound parameter (`%s` placeholder with `(pattern,)` as the params tuple), not interpolated into the SQL string, so this is parameterized correctly and is **not** vulnerable to SQL injection. Wrapping it in `%` wildcards before binding is a standard, safe way to build a `LIKE` pattern.\n\nNo other issues stand out (no XSS risk since it's a JSON API response, no obvious injection vector elsewhere in the 13-line diff).\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

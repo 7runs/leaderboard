@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 4,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review Summary\n\nI've identified **4 significant security issues** in this diff:\n\n### 🔴 **Critical Finding: Search Term Missing from Query (Line 8)**\nThe code constructs a `pattern` variable but **never includes the user's search term** in it. The pattern will always be `\"%\"`, making the search completely non-functional. Every search will return all articles regardless of the query.\n\n```python\npattern = \"%\" + term + \"%\"  # ✅ Correct\n# Should be used like this:\ncursor.execute(\"...WHERE title LIKE %s...\", (pattern,))  # ✓ This is there\n# But 'term' is never actually added!\n```\n\n### 🔴 **High: Input Validation Missing (Line 5)**\nNo length validation on the search term. An attacker could send a 10KB+ search string causing:\n- Full table scans with expensive pattern matching\n- Database resource exhaustion\n- Denial of Service\n\n**Recommendation:** Add input validation:\n```python\nMAX_SEARCH_LENGTH = 100\nterm = request.GET.get(\"q\", \"\").strip()[:MAX_SEARCH_LENGTH]\n```\n\n### 🟡 **Medium: Potential Pattern Injection (Line 5)**\nThe `%` and `_` wildcards in SQL LIKE queries have special meaning. If `term` contains these characters, they'll act as wildcards even though the user likely expects literal matching.\n\n**Recommendation:** Escape LIKE wildcards:\n```python\nimport re\nterm = request.GET.get(\"q\", \"\").strip()\nterm = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\npattern = \"%\" + term + \"%\"\n```\n\n### 🟡 **Medium: Missing Error Handling (Line 4)**\nNo try/catch or database error handling. If the query fails, unhandled exceptions will leak database details to the client via stack traces.\n\n**Recommendation:**\n```python\ntry:\n    cursor.execute(...)\n    rows = cursor.fetchall()\nexcept Exception as e:\n    logger.error(f\"Search query failed: {e}\")\n    return JsonResponse({\"error\": \"Search failed\"}, status=500)\n```\n\n### ✅ **Positive: Parameterized Queries**\nThe diff correctly uses parameterized queries (`%s` placeholder with tuple) which is the right approach to prevent SQL injection—just ensure all parameters are properly bound.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:37:36.538Z",
+  "durationMs": 42308,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output claims two security-flavored findings that don't hold up: a \"Critical\" claim that `term` is never included in the pattern (contradicted by its own code snippet showing `pattern = \"%\" + term + \"%\"`, so this is factually wrong), and a \"Medium: Potential Pattern Injection\" claim that LIKE wildcard characters constitute an injection-style vulnerability — this is the benign LIKE-wildcard behavior the rubric explicitly says must not be labeled a vulnerability. Since the review asserts real (or purported) vulnerabilities beyond acceptable benign-behavior notes, it fails the rubric.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output claims two security-flavored findings that don't hold up: a \"Critical\" claim that `term` is never included in the pattern (contradicted by its own code snippet showing `pattern = \"%\" + term + \"%\"`, so this is factually wrong), and a \"Medium: Potential Pattern Injection\" claim that LIKE wildcard characters constitute an injection-style vulnerability — this is the benign LIKE-wildcard behavior the rubric explicitly says must not be labeled a vulnerability. Since the review asserts real (or purported) vulnerabilities beyond acceptable benign-behavior notes, it fails the rubric.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output claims two security-flavored findings that don't hold up: a \"Critical\" claim that `term` is never included in the pattern (contradicted by its own code snippet showing `pattern = \"%\" + term + \"%\"`, so this is factually wrong), and a \"Medium: Potential Pattern Injection\" claim that LIKE wildcard characters constitute an injection-style vulnerability — this is the benign LIKE-wildcard behavior the rubric explicitly says must not be labeled a vulnerability. Since the review asserts real (or purported) vulnerabilities beyond acceptable benign-behavior notes, it fails the rubric."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent's output includes a \"Medium: Potential Pattern Injection\" finding treating user-controlled LIKE wildcards as a security issue requiring escaping, and also frames missing input validation as a DoS/security concern — these mischaracterize benign LIKE-wildcard behavior as vulnerabilities rather than simply noting it, so the review fails the PASS condition.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent's output includes a \"Medium: Potential Pattern Injection\" finding treating user-controlled LIKE wildcards as a security issue requiring escaping, and also frames missing input validation as a DoS/security concern — these mischaracterize benign LIKE-wildcard behavior as vulnerabilities rather than simply noting it, so the review fails the PASS condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nI've identified **4 significant security issues** in this diff:\n\n### 🔴 **Critical Finding: Search Term Missing from Query (Line 8)**\nThe code constructs a `pattern` variable but **never includes the user's search term** in it. The pattern will always be `\"%\"`, making the search completely non-functional. Every search will return all articles regardless of the query.\n\n```python\npattern = \"%\" + term + \"%\"  # ✅ Correct\n# Should be used like this:\ncursor.execute(\"...WHERE title LIKE %s...\", (pattern,))  # ✓ This is there\n# But 'term' is never actually added!\n```\n\n### 🔴 **High: Input Validation Missing (Line 5)**\nNo length validation on the search term. An attacker could send a 10KB+ search string causing:\n- Full table scans with expensive pattern matching\n- Database resource exhaustion\n- Denial of Service\n\n**Recommendation:** Add input validation:\n```python\nMAX_SEARCH_LENGTH = 100\nterm = request.GET.get(\"q\", \"\").strip()[:MAX_SEARCH_LENGTH]\n```\n\n### 🟡 **Medium: Potential Pattern Injection (Line 5)**\nThe `%` and `_` wildcards in SQL LIKE queries have special meaning. If `term` contains these characters, they'll act as wildcards even though the user likely expects literal matching.\n\n**Recommendation:** Escape LIKE wildcards:\n```python\nimport re\nterm = request.GET.get(\"q\", \"\").strip()\nterm = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\npattern = \"%\" + term + \"%\"\n```\n\n### 🟡 **Medium: Missing Error Handling (Line 4)**\nNo try/catch or database error handling. If the query fails, unhandled exceptions will leak database details to the client via stack traces.\n\n**Recommendation:**\n```python\ntry:\n    cursor.execute(...)\n    rows = cursor.fetchall()\nexcept Exception as e:\n    logger.error(f\"Search query failed: {e}\")\n    return JsonResponse({\"error\": \"Search failed\"}, status=500)\n```\n\n### ✅ **Positive: Parameterized Queries**\nThe diff correctly uses parameterized queries (`%s` placeholder with tuple) which is the right approach to prevent SQL injection—just ensure all parameters are properly bound.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 39,
+    "output_tokens": 2338,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.0424302,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 39,
+        "outputTokens": 2338,
+        "cacheReadInputTokens": 125632,
+        "cacheCreationInputTokens": 8764,
+        "webSearchRequests": 0,
+        "costUSD": 0.0418202,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

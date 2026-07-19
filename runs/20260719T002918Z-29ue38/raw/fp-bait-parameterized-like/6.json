@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "No security issues found. The diff correctly uses a parameterized query (`%s` placeholder with the value passed as a separate tuple argument), so the string concatenation building the `LIKE` pattern never becomes part of the SQL structure — it's safe from SQL injection despite superficially resembling a vulnerable pattern.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:30:57.347Z",
+  "durationMs": 31867,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output correctly identifies no security issues, explicitly explaining that the `%s` placeholder with the value passed as a separate tuple argument constitutes a properly parameterized query, and that the string concatenation only builds the LIKE pattern value without ever becoming part of the SQL structure. It does not claim SQL injection or any other real vulnerability exists, matching the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output correctly identifies no security issues, explicitly explaining that the `%s` placeholder with the value passed as a separate tuple argument constitutes a properly parameterized query, and that the string concatenation only builds the LIKE pattern value without ever becoming part of the SQL structure. It does not claim SQL injection or any other real vulnerability exists, matching the rubric's PASS condition."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output concludes \"No security issues found\" and explicitly explains that the `%s` placeholder with a separately passed tuple value keeps the query parameterized, so the LIKE-pattern concatenation never enters the SQL text — correctly identifying this as safe from SQL injection rather than asserting a vulnerability. This matches the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output concludes \"No security issues found\" and explicitly explains that the `%s` placeholder with a separately passed tuple value keeps the query parameterized, so the LIKE-pattern concatenation never enters the SQL text — correctly identifying this as safe from SQL injection rather than asserting a vulnerability. This matches the rubric's PASS condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nNo security issues found. The diff correctly uses a parameterized query (`%s` placeholder with the value passed as a separate tuple argument), so the string concatenation building the `LIKE` pattern never becomes part of the SQL structure — it's safe from SQL injection despite superficially resembling a vulnerable pattern.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

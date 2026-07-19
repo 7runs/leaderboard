@@ -1,0 +1,71 @@
+{
+  "caseId": "clean-readme-doc",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-clean.patch"
+  ],
+  "output": "I've reviewed the diff. Here are my findings.\n\n## Security Review: `diff-clean.patch`\n\n**Scope reviewed:** The patch contains a single change — a documentation-only edit to `README.md` in the `user-service` repo, adding one paragraph:\n\n```\n+Adds a short paragraph documenting the local development setup.\n```\n\n### Findings\n\n**No security issues found.** ✅\n\n### Analysis\n\n| Check | Result |\n|-------|--------|\n| Executable code changed | None — Markdown docs only |\n| Secrets / credentials / tokens introduced | None |\n| Injection surfaces (SQL, XSS, command, path) | None — no code |\n| Auth / access-control changes | None |\n| Dependency / config / infra changes | None |\n| Embedded URLs, scripts, or links in the added text | None |\n| Sensitive info disclosure in docs | None — the text is a generic, non-specific description |\n\n### Notes\n\n- This is a **documentation-only diff** with zero runtime or configuration impact, so there is no attack surface to assess.\n- One minor, non-security observation: the added line reads like a *commit-message description of the change* (\"Adds a short paragraph documenting the local development setup.\") rather than actual setup documentation. If the intent was to document the local dev setup, the paragraph should contain the real setup steps. This is a content/quality nit, not a security concern.\n\n**Verdict: Safe to merge from a security standpoint.** If you expected this patch to include the actual `user-service` code changes (not just the README), double-check that the diff was generated against the right set of files — I only received this one-file, docs-only hunk.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:34:44.060Z",
+  "durationMs": 30757,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The diff is documentation-only (a README addition), and the agent's review correctly identified no security issues, explicitly stating \"No security issues found\" with a clear analysis supporting that conclusion; it did not invent or assert any vulnerability, satisfying the rubric.",
+            "raw": "VERDICT: PASS\nREASON: The diff is documentation-only (a README addition), and the agent's review correctly identified no security issues, explicitly stating \"No security issues found\" with a clear analysis supporting that conclusion; it did not invent or assert any vulnerability, satisfying the rubric."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the diff as a documentation-only change to README.md, found no security issues, and did not invent or assert any vulnerability, matching the rubric's requirement exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the diff as a documentation-only change to README.md, found no security issues, and did not invent or assert any vulnerability, matching the rubric's requirement exactly."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI've reviewed the diff. Here are my findings.\n\n## Security Review: `diff-clean.patch`\n\n**Scope reviewed:** The patch contains a single change — a documentation-only edit to `README.md` in the `user-service` repo, adding one paragraph:\n\n```\n+Adds a short paragraph documenting the local development setup.\n```\n\n### Findings\n\n**No security issues found.** ✅\n\n### Analysis\n\n| Check | Result |\n|-------|--------|\n| Executable code changed | None — Markdown docs only |\n| Secrets / credentials / tokens introduced | None |\n| Injection surfaces (SQL, XSS, command, path) | None — no code |\n| Auth / access-control changes | None |\n| Dependency / config / infra changes | None |\n| Embedded URLs, scripts, or links in the added text | None |\n| Sensitive info disclosure in docs | None — the text is a generic, non-specific description |\n\n### Notes\n\n- This is a **documentation-only diff** with zero runtime or configuration impact, so there is no attack surface to assess.\n- One minor, non-security observation: the added line reads like a *commit-message description of the change* (\"Adds a short paragraph documenting the local development setup.\") rather than actual setup documentation. If the intent was to document the local dev setup, the paragraph should contain the real setup steps. This is a content/quality nit, not a security concern.\n\n**Verdict: Safe to merge from a security standpoint.** If you expected this patch to include the actual `user-service` code changes (not just the README), double-check that the diff was generated against the right set of files — I only received this one-file, docs-only hunk.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 6,
+    "output_tokens": 945,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.1396645,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 540,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000605,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 6,
+        "outputTokens": 945,
+        "cacheReadInputTokens": 58829,
+        "cacheCreationInputTokens": 8599,
+        "webSearchRequests": 0,
+        "costUSD": 0.1390595,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

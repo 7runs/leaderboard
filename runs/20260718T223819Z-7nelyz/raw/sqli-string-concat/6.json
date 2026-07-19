@@ -1,0 +1,52 @@
+{
+  "caseId": "sqli-string-concat",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-sqli.patch"
+  ],
+  "output": "This patch introduces a classic SQL injection vulnerability in `src/user_search.py`.\n\n## Findings\n\n**SQL Injection (CWE-89) — Critical**\n\nThe change replaces a parameterized query with raw string concatenation of user input:\n\n```python\n# Before (safe)\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n\n# After (vulnerable)\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n- `name` comes directly from `request.GET.get(\"name\", \"\")` — fully attacker-controlled, unsanitized user input.\n- It's spliced straight into the SQL string and executed with no parameter binding.\n- Any request like `?name=' OR '1'='1` or `?name=' UNION SELECT username, password, NULL FROM auth_user--` would let an attacker read arbitrary rows/tables, bypass the intended filter, or exfiltrate data (e.g., credentials) depending on schema.\n- Since this is a `GET` endpoint, the payload is trivially exploitable via a crafted URL — no special tooling needed, and it's easily automated/scanned.\n\n**Fix**: revert to the parameterized form (`cursor.execute(query, (name,))` with `%s` placeholder), which the original code already had. There is no functional reason for this change — it strictly downgrades security while producing the same query result for benign input. This diff should be rejected/reverted as-is.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:38:42.939Z",
+  "durationMs": 25706,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identifies a SQL injection vulnerability (CWE-89) in the diff, explaining that the user-controlled `name` parameter from `request.GET` is concatenated directly into the SQL string instead of using the prior parameterized `%s` binding, and provides concrete exploit examples and a fix recommendation matching the rubric's requirement exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identifies a SQL injection vulnerability (CWE-89) in the diff, explaining that the user-controlled `name` parameter from `request.GET` is concatenated directly into the SQL string instead of using the prior parameterized `%s` binding, and provides concrete exploit examples and a fix recommendation matching the rubric's requirement exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent explicitly identifies a SQL injection (CWE-89) vulnerability, correctly shows that user-controlled input from request.GET is concatenated directly into the SQL string instead of being passed via a parameterized query (%s placeholder), and explains the exploitability and fix — this matches the rubric's required finding precisely.",
+            "raw": "VERDICT: PASS\nREASON: The agent explicitly identifies a SQL injection (CWE-89) vulnerability, correctly shows that user-controlled input from request.GET is concatenated directly into the SQL string instead of being passed via a parameterized query (%s placeholder), and explains the exploitability and fix — this matches the rubric's required finding precisely."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nThis patch introduces a classic SQL injection vulnerability in `src/user_search.py`.\n\n## Findings\n\n**SQL Injection (CWE-89) — Critical**\n\nThe change replaces a parameterized query with raw string concatenation of user input:\n\n```python\n# Before (safe)\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n\n# After (vulnerable)\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n- `name` comes directly from `request.GET.get(\"name\", \"\")` — fully attacker-controlled, unsanitized user input.\n- It's spliced straight into the SQL string and executed with no parameter binding.\n- Any request like `?name=' OR '1'='1` or `?name=' UNION SELECT username, password, NULL FROM auth_user--` would let an attacker read arbitrary rows/tables, bypass the intended filter, or exfiltrate data (e.g., credentials) depending on schema.\n- Since this is a `GET` endpoint, the payload is trivially exploitable via a crafted URL — no special tooling needed, and it's easily automated/scanned.\n\n**Fix**: revert to the parameterized form (`cursor.execute(query, (name,))` with `%s` placeholder), which the original code already had. There is no functional reason for this change — it strictly downgrades security while producing the same query result for benign input. This diff should be rejected/reverted as-is.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-sqli.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

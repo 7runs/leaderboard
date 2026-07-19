@@ -1,0 +1,52 @@
+{
+  "caseId": "sqli-string-concat",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-sqli.patch"
+  ],
+  "output": "This diff introduces a SQL injection vulnerability.\n\n## Finding: SQL Injection (Critical)\n\n**File:** `src/user_search.py`, in `search_users`\n\n**What changed:** The code was rewritten from a parameterized query to string concatenation:\n\n```python\n# Before (safe)\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n\n# After (vulnerable)\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n**Failure scenario:** `name` comes directly from `request.GET.get(\"name\", \"\")` — unauthenticated, unsanitized user input — and is spliced straight into the SQL string. A request like:\n\n```\nGET /search?name=' OR '1'='1\n```\n\nreturns every row in `users` (auth/enumeration bypass). Worse, a request like:\n\n```\nGET /search?name=x' UNION SELECT username, password, NULL FROM auth_user--\n```\n\nor a stacked query (if the driver/DB permits multi-statements) could exfiltrate arbitrary data or modify/drop tables. This is a textbook classic SQLi (CWE-89, OWASP A03:2021).\n\n**Fix:** Revert to the parameterized form that was removed:\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n```\n\nThere is no legitimate reason for this change — it strictly downgrades safe code to unsafe code. This should be rejected/reverted before merge.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:38:41.671Z",
+  "durationMs": 20848,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent explicitly identified a SQL injection vulnerability, correctly noting that the user-controlled `name` parameter from `request.GET` is concatenated directly into the SQL query string rather than using the previously-present parameterized query, and it provided an accurate failure scenario (e.g., `' OR '1'='1` payload) along with a correct fix recommendation, fully satisfying the rubric.",
+            "raw": "VERDICT: PASS\nREASON: The agent explicitly identified a SQL injection vulnerability, correctly noting that the user-controlled `name` parameter from `request.GET` is concatenated directly into the SQL query string rather than using the previously-present parameterized query, and it provided an accurate failure scenario (e.g., `' OR '1'='1` payload) along with a correct fix recommendation, fully satisfying the rubric."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly and unambiguously identified the SQL injection vulnerability, showing that the user-controlled 'name' parameter from request.GET is concatenated directly into the SQL query string instead of using the parameterized form (%s placeholder with tuple binding), and explained concrete exploit scenarios (auth bypass, UNION-based exfiltration), satisfying the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly and unambiguously identified the SQL injection vulnerability, showing that the user-controlled 'name' parameter from request.GET is concatenated directly into the SQL query string instead of using the parameterized form (%s placeholder with tuple binding), and explained concrete exploit scenarios (auth bypass, UNION-based exfiltration), satisfying the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nThis diff introduces a SQL injection vulnerability.\n\n## Finding: SQL Injection (Critical)\n\n**File:** `src/user_search.py`, in `search_users`\n\n**What changed:** The code was rewritten from a parameterized query to string concatenation:\n\n```python\n# Before (safe)\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n\n# After (vulnerable)\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n**Failure scenario:** `name` comes directly from `request.GET.get(\"name\", \"\")` — unauthenticated, unsanitized user input — and is spliced straight into the SQL string. A request like:\n\n```\nGET /search?name=' OR '1'='1\n```\n\nreturns every row in `users` (auth/enumeration bypass). Worse, a request like:\n\n```\nGET /search?name=x' UNION SELECT username, password, NULL FROM auth_user--\n```\n\nor a stacked query (if the driver/DB permits multi-statements) could exfiltrate arbitrary data or modify/drop tables. This is a textbook classic SQLi (CWE-89, OWASP A03:2021).\n\n**Fix:** Revert to the parameterized form that was removed:\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n```\n\nThere is no legitimate reason for this change — it strictly downgrades safe code to unsafe code. This should be rejected/reverted before merge.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-sqli.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

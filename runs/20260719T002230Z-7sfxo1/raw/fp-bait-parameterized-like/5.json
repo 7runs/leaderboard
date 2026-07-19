@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "No genuine security issues in this diff — the change correctly parameterizes the new `LIKE` query (`cursor.execute(sql, (pattern,))`), so it is **not vulnerable to SQL injection** despite building a `%term%` pattern from user input. That pattern-building happens in Python before being passed as a bound parameter, never concatenated into the SQL string itself.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:24:17.138Z",
+  "durationMs": 24085,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly concluded that the diff is safe, explicitly stating there is no SQL injection because the query uses a bound parameter (`cursor.execute(sql, (pattern,))`) rather than string interpolation into the SQL text, and that the `%term%` pattern-building happens in Python before being passed as the bound value. This matches the rubric's required conclusion, and the agent did not assert any SQL injection or other security vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly concluded that the diff is safe, explicitly stating there is no SQL injection because the query uses a bound parameter (`cursor.execute(sql, (pattern,))`) rather than string interpolation into the SQL text, and that the `%term%` pattern-building happens in Python before being passed as the bound value. This matches the rubric's required conclusion, and the agent did not assert any SQL injection or other security vulnerability."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The rubric requires the review not to claim a SQL injection or other real security vulnerability, and the agent output explicitly states there are no genuine security issues and that the query is not vulnerable to SQL injection because `pattern` is passed as a bound parameter rather than concatenated into the SQL string — this matches the rubric's expected correct assessment.",
+            "raw": "VERDICT: PASS\nREASON: The rubric requires the review not to claim a SQL injection or other real security vulnerability, and the agent output explicitly states there are no genuine security issues and that the query is not vulnerable to SQL injection because `pattern` is passed as a bound parameter rather than concatenated into the SQL string — this matches the rubric's expected correct assessment."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nNo genuine security issues in this diff — the change correctly parameterizes the new `LIKE` query (`cursor.execute(sql, (pattern,))`), so it is **not vulnerable to SQL injection** despite building a `%term%` pattern from user input. That pattern-building happens in Python before being passed as a bound parameter, never concatenated into the SQL string itself.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 977,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.0847744,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 8,
+        "outputTokens": 977,
+        "cacheReadInputTokens": 110678,
+        "cacheCreationInputTokens": 6047,
+        "webSearchRequests": 0,
+        "costUSD": 0.0841644,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

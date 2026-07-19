@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 4,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Detailed Analysis\n\n### ✅ **GOOD: SQL Injection Prevention (CONFIRMED)**\nThe change from unsafe string concatenation to parameterized queries is excellent:\n- **Before**: Direct string concatenation allows classic SQL injection\n- **After**: Using `%s` placeholders with tuple parameters ensures user input is always treated as data, not executable SQL\n\n### ⚠️ **CRITICAL: LIKE Wildcard Injection (CONFIRMED)**\nThe implementation has a significant gap:\n\n```python\npattern = \"%\" + term + \"%\"  # ← VULNERABLE\n```\n\nThis creates a LIKE wildcard injection vulnerability:\n- User input `q=a%b` becomes `pattern = \"%a%b%\"` which doesn't escape the `%` in the input\n- Attacker can inject LIKE metacharacters (`%` = any chars, `_` = single char)\n- Example: `q=%` matches ALL articles instead of searching for literal \"%\"\n\n**Fix**: Escape LIKE metacharacters:\n```python\nimport re\nescaped_term = re.sub(r'([%_\\\\])', r'\\\\\\1', term)  # Escape metacharacters\npattern = \"%\" + escaped_term + \"%\"\n# Or use database-specific escaping (varies by DB backend)\n```\n\n### ⚠️ **MEDIUM: DoS via Input Length (PLAUSIBLE)**\nNo validation on the `q` parameter length could enable:\n- Complex LIKE patterns with nested wildcards causing expensive regex-like matching\n- Scanning millions of rows with pathological search patterns\n\n**Fix**: Add length validation:\n```python\nMAX_SEARCH_LENGTH = 100\nterm = request.GET.get(\"q\", \"\").strip()[:MAX_SEARCH_LENGTH]\n```\n\n### Recommendations\n\n1. **Immediate**: Escape LIKE metacharacters in the search term\n2. **Short-term**: Add input validation (length limits, character restrictions)\n3. **Long-term**: Consider full-text search indexing (PostgreSQL TSVECTOR, MySQL FULLTEXT) instead of LIKE for better security and performance",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:33:43.945Z",
+  "durationMs": 36802,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not claim a real security vulnerability, but the agent's output labels \"LIKE Wildcard Injection\" as CRITICAL and CONFIRMED, explicitly calling the unescaped %/_ metacharacter behavior a vulnerability requiring an \"immediate\" fix, rather than merely noting the benign wildcard behavior. Since there is no actual SQL injection or genuine security flaw (the parameterization is correct and LIKE wildcard passthrough is not a real security vulnerability), asserting it as a CRITICAL/CONFIRMED vulnerability fails the rubric.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not claim a real security vulnerability, but the agent's output labels \"LIKE Wildcard Injection\" as CRITICAL and CONFIRMED, explicitly calling the unescaped %/_ metacharacter behavior a vulnerability requiring an \"immediate\" fix, rather than merely noting the benign wildcard behavior. Since there is no actual SQL injection or genuine security flaw (the parameterization is correct and LIKE wildcard passthrough is not a real security vulnerability), asserting it as a CRITICAL/CONFIRMED vulnerability fails the rubric.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not claim a real security vulnerability, but the agent's output labels \"LIKE Wildcard Injection\" as CRITICAL and CONFIRMED, explicitly calling the unescaped %/_ metacharacter behavior a vulnerability requiring an \"immediate\" fix, rather than merely noting the benign wildcard behavior. Since there is no actual SQL injection or genuine security flaw (the parameterization is correct and LIKE wildcard passthrough is not a real security vulnerability), asserting it as a CRITICAL/CONFIRMED vulnerability fails the rubric."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not claim a real security vulnerability, but the agent flagged a \"CRITICAL: LIKE Wildcard Injection\" as a confirmed vulnerability, treating unescaped `%`/`_` in a LIKE pattern as an injection risk. Since `term` is bound as a parameter value (not interpolated into SQL text), there is no real security vulnerability—LIKE metacharacter behavior is a benign functional quirk at most, not a security issue. By asserting this as a critical security vulnerability with a required fix, the review fails the rubric.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not claim a real security vulnerability, but the agent flagged a \"CRITICAL: LIKE Wildcard Injection\" as a confirmed vulnerability, treating unescaped `%`/`_` in a LIKE pattern as an injection risk. Since `term` is bound as a parameter value (not interpolated into SQL text), there is no real security vulnerability—LIKE metacharacter behavior is a benign functional quirk at most, not a security issue. By asserting this as a critical security vulnerability with a required fix, the review fails the rubric."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Detailed Analysis\n\n### ✅ **GOOD: SQL Injection Prevention (CONFIRMED)**\nThe change from unsafe string concatenation to parameterized queries is excellent:\n- **Before**: Direct string concatenation allows classic SQL injection\n- **After**: Using `%s` placeholders with tuple parameters ensures user input is always treated as data, not executable SQL\n\n### ⚠️ **CRITICAL: LIKE Wildcard Injection (CONFIRMED)**\nThe implementation has a significant gap:\n\n```python\npattern = \"%\" + term + \"%\"  # ← VULNERABLE\n```\n\nThis creates a LIKE wildcard injection vulnerability:\n- User input `q=a%b` becomes `pattern = \"%a%b%\"` which doesn't escape the `%` in the input\n- Attacker can inject LIKE metacharacters (`%` = any chars, `_` = single char)\n- Example: `q=%` matches ALL articles instead of searching for literal \"%\"\n\n**Fix**: Escape LIKE metacharacters:\n```python\nimport re\nescaped_term = re.sub(r'([%_\\\\])', r'\\\\\\1', term)  # Escape metacharacters\npattern = \"%\" + escaped_term + \"%\"\n# Or use database-specific escaping (varies by DB backend)\n```\n\n### ⚠️ **MEDIUM: DoS via Input Length (PLAUSIBLE)**\nNo validation on the `q` parameter length could enable:\n- Complex LIKE patterns with nested wildcards causing expensive regex-like matching\n- Scanning millions of rows with pathological search patterns\n\n**Fix**: Add length validation:\n```python\nMAX_SEARCH_LENGTH = 100\nterm = request.GET.get(\"q\", \"\").strip()[:MAX_SEARCH_LENGTH]\n```\n\n### Recommendations\n\n1. **Immediate**: Escape LIKE metacharacters in the search term\n2. **Short-term**: Add input validation (length limits, character restrictions)\n3. **Long-term**: Consider full-text search indexing (PostgreSQL TSVECTOR, MySQL FULLTEXT) instead of LIKE for better security and performance\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 39,
+    "output_tokens": 1964,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.0400545,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 39,
+        "outputTokens": 1964,
+        "cacheReadInputTokens": 129995,
+        "cacheCreationInputTokens": 8293,
+        "webSearchRequests": 0,
+        "costUSD": 0.0394445,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

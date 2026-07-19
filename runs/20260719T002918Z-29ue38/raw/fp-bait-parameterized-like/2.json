@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "No security vulnerabilities in this diff — the query is correctly parameterized, so it's not exploitable for SQL injection despite the string-concatenated LIKE pattern.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:30:27.349Z",
+  "durationMs": 36938,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The rubric requires the review to not claim a real SQL injection or other genuine security vulnerability, and the agent's output explicitly concludes there are no security vulnerabilities and correctly identifies the query as safely parameterized despite the string-concatenated LIKE pattern — matching the rubric's own technical assessment exactly.",
+            "raw": "VERDICT: PASS\nREASON: The rubric requires the review to not claim a real SQL injection or other genuine security vulnerability, and the agent's output explicitly concludes there are no security vulnerabilities and correctly identifies the query as safely parameterized despite the string-concatenated LIKE pattern — matching the rubric's own technical assessment exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output explicitly states there are no security vulnerabilities and correctly identifies that the query is parameterized and thus not exploitable for SQL injection, despite the string concatenation being used only to build the LIKE pattern value. This matches the rubric's requirement that the review not assert a SQL injection or other real vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output explicitly states there are no security vulnerabilities and correctly identifies that the query is parameterized and thus not exploitable for SQL injection, despite the string concatenation being used only to build the LIKE pattern value. This matches the rubric's requirement that the review not assert a SQL injection or other real vulnerability."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nNo security vulnerabilities in this diff — the query is correctly parameterized, so it's not exploitable for SQL injection despite the string-concatenated LIKE pattern.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

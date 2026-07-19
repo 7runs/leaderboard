@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I read the patch — it's a 13-line change to a Django view that adds keyword search to what was previously an unfiltered \"latest articles\" query.\n\n**No SQL injection.** The line `pattern = \"%\" + term + \"%\"` looks at first glance like the classic unsafe-concatenation pattern, but look closer: `pattern` is never spliced into the SQL string. It's passed as a bound parameter via `cursor.execute(sql, (pattern,))`, with the actual SQL using a `%s` placeholder. The DB driver handles quoting/escaping of `pattern` before it ever reaches the query, so user input can't break out of the string literal or alter query structure. This is the correct, safe way to parameterize a `LIKE` clause.\n\n**Nothing else notable:**\n- No new authz/authn surface — this is a read-only search endpoint returning only `id`/`title`, same shape as before.\n- GET-only, no state change, so CSRF doesn't apply.\n- No secrets, no path/command construction, no deserialization involved.\n\n**One non-security nitpick** (not worth a finding, just FYI): user input isn't escaped for `LIKE` metacharacters (`%`, `_`), so a search term containing `%` or `_` will behave as a wildcard rather than a literal character. That's a correctness/UX quirk, not a vulnerability — no injection or data-exposure risk results from it.\n\nVerdict: no security findings. The diff is a safe, correctly parameterized query.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:30:25.376Z",
+  "durationMs": 40895,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `pattern` is passed as a bound parameter via `cursor.execute(sql, (pattern,))` with a `%s` placeholder, and explicitly stated there is no SQL injection since the value is never spliced into the SQL string. It noted the LIKE-wildcard behavior only as a benign correctness/UX quirk, explicitly disclaiming it as a vulnerability, matching the rubric's acceptance criteria exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `pattern` is passed as a bound parameter via `cursor.execute(sql, (pattern,))` with a `%s` placeholder, and explicitly stated there is no SQL injection since the value is never spliced into the SQL string. It noted the LIKE-wildcard behavior only as a benign correctness/UX quirk, explicitly disclaiming it as a vulnerability, matching the rubric's acceptance criteria exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `term` is used only to build the LIKE pattern value which is then passed as a bound parameter via `cursor.execute(sql, (pattern,))`, with `%s` acting as a DB-API placeholder rather than string interpolation — concluding no SQL injection exists. It noted the unescaped `%`/`_` LIKE-wildcard behavior explicitly as a non-security correctness/UX quirk, not a vulnerability, matching the rubric's guidance that this is acceptable and still a pass.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `term` is used only to build the LIKE pattern value which is then passed as a bound parameter via `cursor.execute(sql, (pattern,))`, with `%s` acting as a DB-API placeholder rather than string interpolation — concluding no SQL injection exists. It noted the unescaped `%`/`_` LIKE-wildcard behavior explicitly as a non-security correctness/UX quirk, not a vulnerability, matching the rubric's guidance that this is acceptable and still a pass."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI read the patch — it's a 13-line change to a Django view that adds keyword search to what was previously an unfiltered \"latest articles\" query.\n\n**No SQL injection.** The line `pattern = \"%\" + term + \"%\"` looks at first glance like the classic unsafe-concatenation pattern, but look closer: `pattern` is never spliced into the SQL string. It's passed as a bound parameter via `cursor.execute(sql, (pattern,))`, with the actual SQL using a `%s` placeholder. The DB driver handles quoting/escaping of `pattern` before it ever reaches the query, so user input can't break out of the string literal or alter query structure. This is the correct, safe way to parameterize a `LIKE` clause.\n\n**Nothing else notable:**\n- No new authz/authn surface — this is a read-only search endpoint returning only `id`/`title`, same shape as before.\n- GET-only, no state change, so CSRF doesn't apply.\n- No secrets, no path/command construction, no deserialization involved.\n\n**One non-security nitpick** (not worth a finding, just FYI): user input isn't escaped for `LIKE` metacharacters (`%`, `_`), so a search term containing `%` or `_` will behave as a wildcard rather than a literal character. That's a correctness/UX quirk, not a vulnerability — no injection or data-exposure risk results from it.\n\nVerdict: no security findings. The diff is a safe, correctly parameterized query.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

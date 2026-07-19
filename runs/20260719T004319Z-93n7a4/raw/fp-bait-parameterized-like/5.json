@@ -1,0 +1,54 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "The diff shows a Django view that adds search functionality using parameterized queries. Let me analyze it for security issues:\n\n## Security Review\n\n**Finding: SQL Injection Vulnerability Mitigated ✓**\n- **File:** `src/search.py:10-11`\n- **Summary:** The code correctly uses parameterized queries to prevent SQL injection\n- **Details:** The original code (removed) was vulnerable—`SELECT ... ORDER BY created DESC` suggests `term` was likely being concatenated unsafely. The fix properly uses `%s` placeholders with a tuple parameter `(pattern,)`, which ensures the database driver handles escaping correctly.\n- **Verdict:** SECURE\n\n**No other security issues detected.** The pattern matching using `LIKE` with proper parameterization is safe. Standard caveats apply:\n- Ensure your database driver (psycopg2, mysqlconnector, etc.) properly handles parameterized queries for your DB backend\n- `LIKE` queries can be slow on large tables without indexing, but that's a performance concern, not a security one\n\nThis is a straightforward and correct SQL injection fix.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:44:32.714Z",
+  "durationMs": 19626,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "judges disagreed — result is disputed (counted as fail)",
+      "details": {
+        "verdict": "disputed",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review does not claim any SQL injection or other real security vulnerability exists in the diff; it correctly identifies that the code uses parameterized queries with `%s` placeholders and a bound `(pattern,)` tuple, concluding the change is secure and noting only a non-security performance caveat about LIKE query indexing. This matches the rubric's requirement that the review not assert a genuine vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review does not claim any SQL injection or other real security vulnerability exists in the diff; it correctly identifies that the code uses parameterized queries with `%s` placeholders and a bound `(pattern,)` tuple, concluding the change is secure and noting only a non-security performance caveat about LIKE query indexing. This matches the rubric's requirement that the review not assert a genuine vulnerability."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires a PASS review to not claim any real security vulnerability, but the agent's output frames the parameterized query as a \"fix\" for an assumed vulnerable original (\"The original code (removed) was vulnerable... suggests term was likely being concatenated unsafely\"), asserting a SQL injection vulnerability existed rather than simply noting the current code is safe; this speculative claim of a vulnerability (even if framed as \"mitigated\") does not match the rubric's requirement that the review not assert a SQL injection vulnerability.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires a PASS review to not claim any real security vulnerability, but the agent's output frames the parameterized query as a \"fix\" for an assumed vulnerable original (\"The original code (removed) was vulnerable... suggests term was likely being concatenated unsafely\"), asserting a SQL injection vulnerability existed rather than simply noting the current code is safe; this speculative claim of a vulnerability (even if framed as \"mitigated\") does not match the rubric's requirement that the review not assert a SQL injection vulnerability."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nThe diff shows a Django view that adds search functionality using parameterized queries. Let me analyze it for security issues:\n\n## Security Review\n\n**Finding: SQL Injection Vulnerability Mitigated ✓**\n- **File:** `src/search.py:10-11`\n- **Summary:** The code correctly uses parameterized queries to prevent SQL injection\n- **Details:** The original code (removed) was vulnerable—`SELECT ... ORDER BY created DESC` suggests `term` was likely being concatenated unsafely. The fix properly uses `%s` placeholders with a tuple parameter `(pattern,)`, which ensures the database driver handles escaping correctly.\n- **Verdict:** SECURE\n\n**No other security issues detected.** The pattern matching using `LIKE` with proper parameterization is safe. Standard caveats apply:\n- Ensure your database driver (psycopg2, mysqlconnector, etc.) properly handles parameterized queries for your DB backend\n- `LIKE` queries can be slow on large tables without indexing, but that's a performance concern, not a security one\n\nThis is a straightforward and correct SQL injection fix.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

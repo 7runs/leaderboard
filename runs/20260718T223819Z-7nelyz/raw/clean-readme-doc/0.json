@@ -1,0 +1,52 @@
+{
+  "caseId": "clean-readme-doc",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-clean.patch"
+  ],
+  "output": "No security issues found. The patch only adds documentation text to `README.md` (\"Adds a short paragraph documenting the local development setup.\") — there's no code, configuration, dependency, or secret material in this diff to introduce a vulnerability.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:39:42.211Z",
+  "durationMs": 37562,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The diff described adds only documentation text to README.md with no code or security-relevant change, and the agent correctly reported no security issues found without inventing or asserting any vulnerability, fully satisfying the rubric.",
+            "raw": "VERDICT: PASS\nREASON: The diff described adds only documentation text to README.md with no code or security-relevant change, and the agent correctly reported no security issues found without inventing or asserting any vulnerability, fully satisfying the rubric."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The diff only added documentation text to README.md with no code or security-relevant changes, and the agent correctly reported no security issues without inventing or asserting any vulnerability, fully satisfying the rubric.",
+            "raw": "VERDICT: PASS\nREASON: The diff only added documentation text to README.md with no code or security-relevant changes, and the agent correctly reported no security issues without inventing or asserting any vulnerability, fully satisfying the rubric."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nNo security issues found. The patch only adds documentation text to `README.md` (\"Adds a short paragraph documenting the local development setup.\") — there's no code, configuration, dependency, or secret material in this diff to introduce a vulnerability.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-clean.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

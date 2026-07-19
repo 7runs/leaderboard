@@ -1,0 +1,71 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Security Review Summary\n\nI've identified **3 critical security issues** in this diff. This code change introduces an **obfuscated command injection vulnerability**:\n\n### 🔴 **CRITICAL: Command Injection via os.system()**\n**Line 14** — The refactored code is **regressing from safe to unsafe**:\n- **Original (SAFE):** `subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)`\n  - Arguments passed as a list, bypassing shell interpretation\n- **New (VULNERABLE):** `os.system(\" \".join(parts))`\n  - Arguments joined with spaces and passed to shell, enabling metacharacter injection\n\n**Attack Vector:**\n```\nGET /?src=input.png;rm+-rf+/&size=100x100\n→ Executes: convert input.png;rm -rf / -resize 100x100 thumb.png\n```\n\nAn attacker can inject arbitrary shell commands through any of the three user-controlled parameters: `infile`, `size`, or `outfile`.\n\n### 🔴 **CRITICAL: Security Regression Pattern**\nThis appears to be **intentionally obfuscated** — the change:\n1. ✅ Imports `shlex` (as if intending to use it)\n2. ❌ Never uses `shlex.quote()` to escape arguments\n3. ❌ Actually uses the MOST UNSAFE method: `os.system()` with simple string joining\n4. This looks like an attempted \"security fix\" that actually introduces the vulnerability\n\n### 🟡 **Dead Code: Unused Import**\n**Line 6** — The `shlex` import is unused, further indicating incomplete/obfuscated refactoring.\n\n### Recommended Fix\n```python\nimport subprocess\nimport shlex\n\ndef make_thumbnail(request):\n    infile = request.GET.get(\"src\", \"input.png\")\n    size = request.GET.get(\"size\", \"100x100\")\n    outfile = \"thumb.png\"\n    # Safe: pass list directly to subprocess without shell\n    subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n    return {\"thumb\": outfile}\n```\n\n**DO NOT merge this change** — it introduces a critical command injection vulnerability in production.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:36:20.803Z",
+  "durationMs": 40243,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that user-controlled `size`/`src` parameters are joined via `\" \".join(parts)` and passed to `os.system()`, explicitly flagging this as a command injection vulnerability with a concrete attack vector, and contrasted it with the prior safe `subprocess.run([...])` argument-vector approach. This matches the rubric's core requirement precisely, correctly identifying the shell injection caused by user input reaching `os.system`.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that user-controlled `size`/`src` parameters are joined via `\" \".join(parts)` and passed to `os.system()`, explicitly flagging this as a command injection vulnerability with a concrete attack vector, and contrasted it with the prior safe `subprocess.run([...])` argument-vector approach. This matches the rubric's core requirement precisely, correctly identifying the shell injection caused by user input reaching `os.system`."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that user-controlled `size`/`src` parameters flow into a list joined by spaces and executed via `os.system()`, explicitly calling this out as a command injection vulnerability, contrasting it with the safe original `subprocess.run([...])` argument-vector approach, and providing a concrete attack example. This matches the rubric's core requirement precisely, so it passes despite the extraneous \"obfuscation\" framing and unused-import note.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that user-controlled `size`/`src` parameters flow into a list joined by spaces and executed via `os.system()`, explicitly calling this out as a command injection vulnerability, contrasting it with the safe original `subprocess.run([...])` argument-vector approach, and providing a concrete attack example. This matches the rubric's core requirement precisely, so it passes despite the extraneous \"obfuscation\" framing and unused-import note."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nI've identified **3 critical security issues** in this diff. This code change introduces an **obfuscated command injection vulnerability**:\n\n### 🔴 **CRITICAL: Command Injection via os.system()**\n**Line 14** — The refactored code is **regressing from safe to unsafe**:\n- **Original (SAFE):** `subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)`\n  - Arguments passed as a list, bypassing shell interpretation\n- **New (VULNERABLE):** `os.system(\" \".join(parts))`\n  - Arguments joined with spaces and passed to shell, enabling metacharacter injection\n\n**Attack Vector:**\n```\nGET /?src=input.png;rm+-rf+/&size=100x100\n→ Executes: convert input.png;rm -rf / -resize 100x100 thumb.png\n```\n\nAn attacker can inject arbitrary shell commands through any of the three user-controlled parameters: `infile`, `size`, or `outfile`.\n\n### 🔴 **CRITICAL: Security Regression Pattern**\nThis appears to be **intentionally obfuscated** — the change:\n1. ✅ Imports `shlex` (as if intending to use it)\n2. ❌ Never uses `shlex.quote()` to escape arguments\n3. ❌ Actually uses the MOST UNSAFE method: `os.system()` with simple string joining\n4. This looks like an attempted \"security fix\" that actually introduces the vulnerability\n\n### 🟡 **Dead Code: Unused Import**\n**Line 6** — The `shlex` import is unused, further indicating incomplete/obfuscated refactoring.\n\n### Recommended Fix\n```python\nimport subprocess\nimport shlex\n\ndef make_thumbnail(request):\n    infile = request.GET.get(\"src\", \"input.png\")\n    size = request.GET.get(\"size\", \"100x100\")\n    outfile = \"thumb.png\"\n    # Safe: pass list directly to subprocess without shell\n    subprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n    return {\"thumb\": outfile}\n```\n\n**DO NOT merge this change** — it introduces a critical command injection vulnerability in production.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 46,
+    "output_tokens": 2444,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 7,
+    "total_cost_usd": 0.046202400000000005,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 546,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000611,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 46,
+        "outputTokens": 2444,
+        "cacheReadInputTokens": 152274,
+        "cacheCreationInputTokens": 9049,
+        "webSearchRequests": 0,
+        "costUSD": 0.045591400000000004,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

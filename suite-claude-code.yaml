@@ -1,0 +1,47 @@
+# 7runs flakiness leaderboard — Phase 1-A
+# Agent under test: Claude Code itself, headless via `claude -p` (shell adapter).
+# Same 3 cases as every Phase 1-A suite (identical task) for direct comparison.
+# Model pinned to claude-sonnet-5 for reproducibility; permission bypass so the
+# headless run may read the staged diff. The shell adapter cannot capture token
+# usage, so cost/model are reported from this pin, not from the transcript.
+#
+# Run from the repo root:  7runs run suite-claude-code.yaml
+name: leaderboard-claude-code-itself
+adapter:
+  type: shell
+  command: claude
+  args:
+    - "-p"
+    - "{{prompt}} Read the file '{{files}}' in your current working directory, then review it."
+    - "--permission-mode"
+    - "bypassPermissions"
+    - "--model"
+    - "claude-sonnet-5"
+  prompt_via: argv
+defaults:
+  reps: 7
+  timeout_s: 300
+  judge_model: claude-sonnet-5
+  judge_transport: claude-agent
+cases:
+  - id: sqli-string-concat
+    label: positive
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-sqli.patch]
+    checks:
+      - llm_rubric: "The review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments."
+  - id: cmdi-shell-true
+    label: positive
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-cmdi.patch]
+    checks:
+      - llm_rubric: "The review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments."
+  - id: clean-readme-doc
+    label: negative
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-clean.patch]
+    checks:
+      - llm_rubric: "The diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS."

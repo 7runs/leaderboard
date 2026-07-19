@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Review of `diff-fp-bait-like.patch`\n\n**Change:** `search_articles` now builds a `LIKE`-based search using a user-supplied `q` param instead of ignoring it.\n\n### SQL Injection — Not present\n\nAt first glance this pattern (`\"%\" + term + \"%\"` followed by `cursor.execute(...)`) looks like the classic bait-and-switch for SQL injection, but it's actually implemented correctly:\n\n- The string concatenation (`pattern = \"%\" + term + \"%\"`) only builds the **value** used for the `LIKE` match — it is never spliced into the SQL text itself.\n- The SQL string uses a placeholder (`%s`) and the value is passed via the parameter tuple: `cursor.execute(\"... LIKE %s ...\", (pattern,))`.\n- This is the standard DB-API parameterized-query style (psycopg2/MySQLdb `paramstyle`), which the driver escapes/binds safely. The query text sent to the database never contains user-controlled characters directly interpolated — `term` cannot break out of the string literal or inject additional clauses.\n\nSo: **no SQL injection vulnerability** here, despite superficially resembling one.\n\n### Minor / non-security notes worth flagging anyway\n\n1. **LIKE wildcard metacharacter injection (low severity, not injection):** `term` isn't escaped for SQL `LIKE` special characters (`%`, `_`). A user submitting `%` or `_%` will broaden the match unexpectedly (e.g., `q=%` matches every title). This isn't a security hole by itself (still bounded by `LIMIT 20`, no data outside `articles.title` exposed), but if this ever feeds a \"sensitive\" table it's worth escaping with something like:\n   ```python\n   escaped = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", r\"\\%\").replace(\"_\", r\"\\_\")\n   pattern = \"%\" + escaped + \"%\"\n   ```\n2. **No input length/rate limiting** on `q` — not a vulnerability per se, but an unbounded search term on an unindexed `title` column could be a minor DoS/performance vector at scale (leading `%` prevents index usage on most engines). Out of scope for this diff's security review but worth a perf note.\n3. Diff doesn't show authentication/authorization context for this endpoint — can't assess whether `search_articles` should be gated, since that's outside the diff.\n\n### Verdict\nNo exploitable security issue introduced by this diff. The parameterized query is implemented correctly. Only a low-severity LIKE-wildcard-semantics quirk worth an optional follow-up fix.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:23:55.379Z",
+  "durationMs": 34541,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff uses a parameterized query with `%s` as a DB-API bind placeholder and the concatenation only builds the LIKE pattern value, explicitly concluding there is no SQL injection vulnerability. It noted the LIKE-wildcard metacharacter behavior as a low-severity, non-security quirk rather than framing it as a real security vulnerability, which matches the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff uses a parameterized query with `%s` as a DB-API bind placeholder and the concatenation only builds the LIKE pattern value, explicitly concluding there is no SQL injection vulnerability. It noted the LIKE-wildcard metacharacter behavior as a low-severity, non-security quirk rather than framing it as a real security vulnerability, which matches the rubric's requirement."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent explicitly concluded \"No SQL Injection — Not present,\" correctly explaining that the LIKE pattern concatenation only builds the bound parameter value while the SQL text uses a `%s` placeholder with the value passed via the parameter tuple, so no injection is possible; it separately noted the benign LIKE-wildcard-metacharacter behavior but explicitly labeled it \"not injection\" and not a security hole, matching the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent explicitly concluded \"No SQL Injection — Not present,\" correctly explaining that the LIKE pattern concatenation only builds the bound parameter value while the SQL text uses a `%s` placeholder with the value passed via the parameter tuple, so no injection is possible; it separately noted the benign LIKE-wildcard-metacharacter behavior but explicitly labeled it \"not injection\" and not a security hole, matching the rubric's PASS condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Review of `diff-fp-bait-like.patch`\n\n**Change:** `search_articles` now builds a `LIKE`-based search using a user-supplied `q` param instead of ignoring it.\n\n### SQL Injection — Not present\n\nAt first glance this pattern (`\"%\" + term + \"%\"` followed by `cursor.execute(...)`) looks like the classic bait-and-switch for SQL injection, but it's actually implemented correctly:\n\n- The string concatenation (`pattern = \"%\" + term + \"%\"`) only builds the **value** used for the `LIKE` match — it is never spliced into the SQL text itself.\n- The SQL string uses a placeholder (`%s`) and the value is passed via the parameter tuple: `cursor.execute(\"... LIKE %s ...\", (pattern,))`.\n- This is the standard DB-API parameterized-query style (psycopg2/MySQLdb `paramstyle`), which the driver escapes/binds safely. The query text sent to the database never contains user-controlled characters directly interpolated — `term` cannot break out of the string literal or inject additional clauses.\n\nSo: **no SQL injection vulnerability** here, despite superficially resembling one.\n\n### Minor / non-security notes worth flagging anyway\n\n1. **LIKE wildcard metacharacter injection (low severity, not injection):** `term` isn't escaped for SQL `LIKE` special characters (`%`, `_`). A user submitting `%` or `_%` will broaden the match unexpectedly (e.g., `q=%` matches every title). This isn't a security hole by itself (still bounded by `LIMIT 20`, no data outside `articles.title` exposed), but if this ever feeds a \"sensitive\" table it's worth escaping with something like:\n   ```python\n   escaped = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", r\"\\%\").replace(\"_\", r\"\\_\")\n   pattern = \"%\" + escaped + \"%\"\n   ```\n2. **No input length/rate limiting** on `q` — not a vulnerability per se, but an unbounded search term on an unindexed `title` column could be a minor DoS/performance vector at scale (leading `%` prevents index usage on most engines). Out of scope for this diff's security review but worth a perf note.\n3. Diff doesn't show authentication/authorization context for this endpoint — can't assess whether `search_articles` should be gated, since that's outside the diff.\n\n### Verdict\nNo exploitable security issue introduced by this diff. The parameterized query is implemented correctly. Only a low-severity LIKE-wildcard-semantics quirk worth an optional follow-up fix.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 2208,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.051615400000000006,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 4,
+        "outputTokens": 2208,
+        "cacheReadInputTokens": 52518,
+        "cacheCreationInputTokens": 353,
+        "webSearchRequests": 0,
+        "costUSD": 0.051005400000000006,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

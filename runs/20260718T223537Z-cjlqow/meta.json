@@ -1,0 +1,90 @@
+{
+  "id": "20260718T223537Z-cjlqow",
+  "label": "wave1",
+  "createdAt": "2026-07-18T22:35:37.752Z",
+  "tool": {
+    "name": "7runs",
+    "version": "0.1.0"
+  },
+  "reps": 7,
+  "concurrency": 4,
+  "timeoutMs": 300000,
+  "filter": null,
+  "suitePath": "./leaderboard",
+  "suite": {
+    "name": "leaderboard-security-auditor-voltagent",
+    "adapter": {
+      "type": "claude-agent",
+      "agent": "leaderboard/agents/voltagent-security-auditor.md"
+    },
+    "defaults": {
+      "reps": 7,
+      "timeout_s": 300,
+      "judge_model": "claude-sonnet-5",
+      "judge_transport": "claude-agent"
+    },
+    "cases": [
+      {
+        "id": "sqli-string-concat",
+        "input": {
+          "prompt": "Review this diff for security issues and report your findings.",
+          "files": [
+            "fixtures/diff-sqli.patch"
+          ]
+        },
+        "checks": [
+          {
+            "llm_rubric": "The review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments."
+          }
+        ],
+        "label": "positive",
+        "tags": []
+      },
+      {
+        "id": "cmdi-shell-true",
+        "input": {
+          "prompt": "Review this diff for security issues and report your findings.",
+          "files": [
+            "fixtures/diff-cmdi.patch"
+          ]
+        },
+        "checks": [
+          {
+            "llm_rubric": "The review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments."
+          }
+        ],
+        "label": "positive",
+        "tags": []
+      },
+      {
+        "id": "clean-readme-doc",
+        "input": {
+          "prompt": "Review this diff for security issues and report your findings.",
+          "files": [
+            "fixtures/diff-clean.patch"
+          ]
+        },
+        "checks": [
+          {
+            "llm_rubric": "The diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS."
+          }
+        ],
+        "label": "negative",
+        "tags": []
+      }
+    ]
+  },
+  "caseIds": [
+    "sqli-string-concat",
+    "cmdi-shell-true",
+    "clean-readme-doc"
+  ],
+  "summary": {
+    "cases": 3,
+    "reps": 7,
+    "executions": 21,
+    "passExecutions": 21,
+    "failExecutions": 0
+  },
+  "durationMs": 161695
+}

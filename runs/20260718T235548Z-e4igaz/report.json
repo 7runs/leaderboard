@@ -1,0 +1,102 @@
+{
+  "schema": "7runs-report/1",
+  "run": {
+    "id": "20260718T235548Z-e4igaz",
+    "suiteName": "leaderboard-w2-security-auditor-voltagent",
+    "label": "wave2",
+    "createdAt": "2026-07-18T23:55:48.068Z",
+    "tool": {
+      "name": "7runs",
+      "version": "0.1.0"
+    },
+    "reps": 7,
+    "concurrency": 4,
+    "timeoutMs": 300000,
+    "filter": null,
+    "caseCount": 3,
+    "durationMs": 196480
+  },
+  "metrics": {
+    "overall": {
+      "executions": 21,
+      "passes": 21,
+      "passRate": 1,
+      "ci": {
+        "low": 0.8453561767357979,
+        "high": 0.9999999999999998
+      }
+    },
+    "flakiness": {
+      "flakyCases": 0,
+      "totalCases": 3,
+      "rate": 0
+    },
+    "latency": {
+      "p50": 32972,
+      "p95": 42364,
+      "max": 43019
+    },
+    "cost": null,
+    "totalAgentTimeMs": 712546,
+    "cases": [
+      {
+        "caseId": "obfuscated-cmdi",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 35241,
+          "p95": 42364,
+          "max": 42364
+        },
+        "cost": null
+      },
+      {
+        "caseId": "fp-bait-parameterized-like",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 31219,
+          "p95": 34269,
+          "max": 34269
+        },
+        "cost": null
+      },
+      {
+        "caseId": "multifile-xss",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 32915,
+          "p95": 43019,
+          "max": 43019
+        },
+        "cost": null
+      }
+    ]
+  },
+  "judge": {
+    "rubricChecks": 21,
+    "disputed": 0,
+    "transports": [
+      "claude-agent"
+    ]
+  }
+}

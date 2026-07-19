@@ -1,0 +1,54 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review: SQL Injection Prevention\n\n**Finding:** This diff **fixes a critical SQL injection vulnerability**.\n\n### Details\n\n**Vulnerability (before):** The original code executed a static query that didn't use the user input `term`, making it incomplete but not exploitable in this specific form.\n\n**Fix (after):** The updated code correctly implements parameterized queries:\n- Uses a placeholder (`%s`) in the SQL string instead of string interpolation\n- Passes the search pattern as a separate tuple argument `(pattern,)` to `cursor.execute()`\n- This prevents SQL injection by ensuring user input is treated as data, not SQL code\n\n### Why This Matters\n\nParameterized queries are the standard defense against SQL injection. Any value in `request.GET.get(\"q\")` is now safely escaped by the database driver and cannot break out of the string literal, even if it contains SQL metacharacters like `'`, `\"`, `--`, or `;`.\n\n### Verdict: ✅ SECURE\n\nThis diff improves security posture. The change correctly uses parameterized queries and is the appropriate fix for protecting database queries against untrusted user input.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:44:12.805Z",
+  "durationMs": 20623,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The agent's review claims the diff \"fixes a critical SQL injection vulnerability,\" asserting that a security vulnerability existed and was remediated, when per the rubric the code (both parameterized query construction) is safe and there is no real SQL injection issue to report — the rubric requires the review not assert a SQL injection vulnerability exists, which this output does.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The agent's review claims the diff \"fixes a critical SQL injection vulnerability,\" asserting that a security vulnerability existed and was remediated, when per the rubric the code (both parameterized query construction) is safe and there is no real SQL injection issue to report — the rubric requires the review not assert a SQL injection vulnerability exists, which this output does.",
+            "raw": "VERDICT: FAIL\nREASON: The agent's review claims the diff \"fixes a critical SQL injection vulnerability,\" asserting that a security vulnerability existed and was remediated, when per the rubric the code (both parameterized query construction) is safe and there is no real SQL injection issue to report — the rubric requires the review not assert a SQL injection vulnerability exists, which this output does."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not claim a SQL injection or other real vulnerability exists, and to correctly recognize the diff as safe parameterized-query usage without mischaracterizing the \"before\" state; the agent output falsely claims the diff \"fixes a critical SQL injection vulnerability,\" which misrepresents the change (the before/after distinction it describes is fabricated, and framing this as fixing a critical vulnerability is a false security claim), so it fails the rubric's requirement.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not claim a SQL injection or other real vulnerability exists, and to correctly recognize the diff as safe parameterized-query usage without mischaracterizing the \"before\" state; the agent output falsely claims the diff \"fixes a critical SQL injection vulnerability,\" which misrepresents the change (the before/after distinction it describes is fabricated, and framing this as fixing a critical vulnerability is a false security claim), so it fails the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: SQL Injection Prevention\n\n**Finding:** This diff **fixes a critical SQL injection vulnerability**.\n\n### Details\n\n**Vulnerability (before):** The original code executed a static query that didn't use the user input `term`, making it incomplete but not exploitable in this specific form.\n\n**Fix (after):** The updated code correctly implements parameterized queries:\n- Uses a placeholder (`%s`) in the SQL string instead of string interpolation\n- Passes the search pattern as a separate tuple argument `(pattern,)` to `cursor.execute()`\n- This prevents SQL injection by ensuring user input is treated as data, not SQL code\n\n### Why This Matters\n\nParameterized queries are the standard defense against SQL injection. Any value in `request.GET.get(\"q\")` is now safely escaped by the database driver and cannot break out of the string literal, even if it contains SQL metacharacters like `'`, `\"`, `--`, or `;`.\n\n### Verdict: ✅ SECURE\n\nThis diff improves security posture. The change correctly uses parameterized queries and is the appropriate fix for protecting database queries against untrusted user input.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "schema": "7runs-report/1",
+  "run": {
+    "id": "20260718T222953Z-ftlp7i",
+    "suiteName": "leaderboard-security-auditor-wshobson",
+    "label": "wave1",
+    "createdAt": "2026-07-18T22:29:53.502Z",
+    "tool": {
+      "name": "7runs",
+      "version": "0.1.0"
+    },
+    "reps": 7,
+    "concurrency": 4,
+    "timeoutMs": 300000,
+    "filter": null,
+    "caseCount": 3,
+    "durationMs": 166681
+  },
+  "metrics": {
+    "overall": {
+      "executions": 21,
+      "passes": 21,
+      "passRate": 1,
+      "ci": {
+        "low": 0.8453561767357979,
+        "high": 0.9999999999999998
+      }
+    },
+    "flakiness": {
+      "flakyCases": 0,
+      "totalCases": 3,
+      "rate": 0
+    },
+    "latency": {
+      "p50": 29620,
+      "p95": 33450,
+      "max": 35352
+    },
+    "cost": null,
+    "totalAgentTimeMs": 605867,
+    "cases": [
+      {
+        "caseId": "sqli-string-concat",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 29563,
+          "p95": 30123,
+          "max": 30123
+        },
+        "cost": null
+      },
+      {
+        "caseId": "cmdi-shell-true",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 31615,
+          "p95": 35352,
+          "max": 35352
+        },
+        "cost": null
+      },
+      {
+        "caseId": "clean-readme-doc",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 25199,
+          "p95": 29620,
+          "max": 29620
+        },
+        "cost": null
+      }
+    ]
+  },
+  "judge": {
+    "rubricChecks": 21,
+    "disputed": 0,
+    "transports": [
+      "claude-agent"
+    ]
+  }
+}

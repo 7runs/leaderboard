@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I reviewed the diff. Here's my assessment.\n\n## Verdict: No security vulnerabilities found\n\n### What the diff does\nIt changes `search_articles` from returning the 20 most recent articles to filtering by a user-supplied search term (`request.GET.get(\"q\")`) using a `LIKE` match.\n\n### The obvious \"bait\" — and why it's actually safe\nThe line that draws the eye is:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAt a glance this looks like SQL injection: user input (`term`) is concatenated into a string that ends up in a SQL query. **But it is not injectable.**\n\n- The concatenation only builds the **LIKE pattern value** (`%term%`), a plain data string.\n- That value is passed as a **bound parameter** — the `(pattern,)` tuple — against the `%s` placeholder. The DB driver sends it separately from the SQL text and never interpolates it into the statement.\n- The `%s` here is a **DB-API parameter placeholder**, not Python string formatting. There is no `%`-formatting or f-string building the SQL text itself.\n\nSo even an input like `' OR 1=1 --` is treated literally as a title substring to match, not as SQL. This is the correct, recommended way to do a parameterized `LIKE` query.\n\n### Non-security notes (not vulnerabilities)\n- **LIKE wildcard behavior:** `%` and `_` in the user's term act as wildcards, so a user can influence match breadth (e.g. `%` matches everything). This is a minor functional/UX matter, not a security issue — no data outside the intended table/columns is exposed. Escape them only if you want literal-substring semantics.\n- **DoS / result shape:** `LIMIT 20` bounds the response size, which is good. Leading-wildcard `LIKE '%...'` can't use a normal index, so very large tables may see slower scans — a performance consideration, not a security one.\n\n### Bottom line\nThe change correctly uses parameterized queries. There are no SQL injection, injection, or other security issues introduced by this diff. **No findings to report.**",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:53:38.056Z",
+  "durationMs": 39345,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the term is passed as a bound parameter via the `%s` DB-API placeholder with `(pattern,)`, and that the string concatenation only builds the LIKE pattern value rather than SQL text, so it explicitly concluded there is no SQL injection. It noted the LIKE wildcard behavior as a benign functional/UX consideration, not a security vulnerability, matching the rubric's acceptance criteria exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the term is passed as a bound parameter via the `%s` DB-API placeholder with `(pattern,)`, and that the string concatenation only builds the LIKE pattern value rather than SQL text, so it explicitly concluded there is no SQL injection. It noted the LIKE wildcard behavior as a benign functional/UX consideration, not a security vulnerability, matching the rubric's acceptance criteria exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly identifies that the `%s` placeholder is a parameterized bind and that the `pattern` string concatenation only builds the LIKE value, never SQL text, and explicitly concludes there is no SQL injection or other security vulnerability, which matches the rubric's required outcome.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly identifies that the `%s` placeholder is a parameterized bind and that the `pattern` string concatenation only builds the LIKE value, never SQL text, and explicitly concludes there is no SQL injection or other security vulnerability, which matches the rubric's required outcome."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed the diff. Here's my assessment.\n\n## Verdict: No security vulnerabilities found\n\n### What the diff does\nIt changes `search_articles` from returning the 20 most recent articles to filtering by a user-supplied search term (`request.GET.get(\"q\")`) using a `LIKE` match.\n\n### The obvious \"bait\" — and why it's actually safe\nThe line that draws the eye is:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAt a glance this looks like SQL injection: user input (`term`) is concatenated into a string that ends up in a SQL query. **But it is not injectable.**\n\n- The concatenation only builds the **LIKE pattern value** (`%term%`), a plain data string.\n- That value is passed as a **bound parameter** — the `(pattern,)` tuple — against the `%s` placeholder. The DB driver sends it separately from the SQL text and never interpolates it into the statement.\n- The `%s` here is a **DB-API parameter placeholder**, not Python string formatting. There is no `%`-formatting or f-string building the SQL text itself.\n\nSo even an input like `' OR 1=1 --` is treated literally as a title substring to match, not as SQL. This is the correct, recommended way to do a parameterized `LIKE` query.\n\n### Non-security notes (not vulnerabilities)\n- **LIKE wildcard behavior:** `%` and `_` in the user's term act as wildcards, so a user can influence match breadth (e.g. `%` matches everything). This is a minor functional/UX matter, not a security issue — no data outside the intended table/columns is exposed. Escape them only if you want literal-substring semantics.\n- **DoS / result shape:** `LIMIT 20` bounds the response size, which is good. Leading-wildcard `LIKE '%...'` can't use a normal index, so very large tables may see slower scans — a performance consideration, not a security one.\n\n### Bottom line\nThe change correctly uses parameterized queries. There are no SQL injection, injection, or other security issues introduced by this diff. **No findings to report.**\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 1436,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.13557550000000002,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 8,
+        "outputTokens": 1436,
+        "cacheReadInputTokens": 87751,
+        "cacheCreationInputTokens": 5515,
+        "webSearchRequests": 0,
+        "costUSD": 0.13496550000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

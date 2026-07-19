@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "Now I'll review this diff for security issues.\n\n## Security Review\n\n**Verdict: SECURE** ✓\n\nThis diff **fixes** a SQL injection vulnerability. Here's the analysis:\n\n### What Changed\nThe code was updated to:\n1. **Use parameterized queries** with `%s` placeholders instead of string concatenation\n2. **Pass the search term as a separate parameter** `(pattern,)` to the execute method\n3. Apply the LIKE pattern matching safely through the database driver\n\n### Security Assessment\n\n| Aspect | Finding |\n|--------|---------|\n| **SQL Injection** | ✓ FIXED — The original code (removed) would concatenate `term` directly into the SQL string, allowing injection attacks. The new code uses proper parameterization, which the database driver escapes correctly. |\n| **Parameterization** | ✓ CORRECT — Uses tuple parameter binding `(pattern,)`, which is the proper way to pass dynamic values in Django/Python database queries. |\n| **Pattern Escaping** | ✓ SAFE — The `%` wildcards for LIKE are safe; the term itself is parameterized, so user input like `%` or `_` characters won't break the query structure. |\n\n### No Issues Found\n- No unescaped string formatting\n- No second-order injection risks\n- No hardcoded credentials or secrets\n- Proper use of database abstraction layer\n\nThis is a **good security fix** that eliminates a critical vulnerability.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:43:43.585Z",
+  "durationMs": 28080,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The rubric requires the review to NOT assert a SQL injection or other real vulnerability exists; here the agent explicitly finds the code SECURE, confirms the diff correctly uses parameterized queries with bound placeholders, and concludes no injection risk exists (even framing it as a fix rather than an introduction of a vulnerability), which satisfies the PASS condition regardless of minor narrative embellishment about a \"prior\" vulnerable version.",
+            "raw": "VERDICT: PASS\nREASON: The rubric requires the review to NOT assert a SQL injection or other real vulnerability exists; here the agent explicitly finds the code SECURE, confirms the diff correctly uses parameterized queries with bound placeholders, and concludes no injection risk exists (even framing it as a fix rather than an introduction of a vulnerability), which satisfies the PASS condition regardless of minor narrative embellishment about a \"prior\" vulnerable version."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The rubric requires a PASS whenever the review does not assert a SQL injection or other real security vulnerability; the agent's review explicitly finds the code uses parameterized queries correctly, concludes there is no injection risk, and reports no security issues — matching the ground truth that the diff is safe.",
+            "raw": "VERDICT: PASS\nREASON: The rubric requires a PASS whenever the review does not assert a SQL injection or other real security vulnerability; the agent's review explicitly finds the code uses parameterized queries correctly, concludes there is no injection risk, and reports no security issues — matching the ground truth that the diff is safe."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nNow I'll review this diff for security issues.\n\n## Security Review\n\n**Verdict: SECURE** ✓\n\nThis diff **fixes** a SQL injection vulnerability. Here's the analysis:\n\n### What Changed\nThe code was updated to:\n1. **Use parameterized queries** with `%s` placeholders instead of string concatenation\n2. **Pass the search term as a separate parameter** `(pattern,)` to the execute method\n3. Apply the LIKE pattern matching safely through the database driver\n\n### Security Assessment\n\n| Aspect | Finding |\n|--------|---------|\n| **SQL Injection** | ✓ FIXED — The original code (removed) would concatenate `term` directly into the SQL string, allowing injection attacks. The new code uses proper parameterization, which the database driver escapes correctly. |\n| **Parameterization** | ✓ CORRECT — Uses tuple parameter binding `(pattern,)`, which is the proper way to pass dynamic values in Django/Python database queries. |\n| **Pattern Escaping** | ✓ SAFE — The `%` wildcards for LIKE are safe; the term itself is parameterized, so user input like `%` or `_` characters won't break the query structure. |\n\n### No Issues Found\n- No unescaped string formatting\n- No second-order injection risks\n- No hardcoded credentials or secrets\n- Proper use of database abstraction layer\n\nThis is a **good security fix** that eliminates a critical vulnerability.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

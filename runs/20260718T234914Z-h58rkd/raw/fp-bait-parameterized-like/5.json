@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review: `diff-fp-bait-like.patch`\n\nI reviewed the change to `src/search.py`, which adds a `title LIKE` filter to the article search query.\n\n### Verdict: No security vulnerabilities found ✅\n\nThe diff is **safe** and actually represents good security practice. Here's my analysis of the one thing that warrants scrutiny:\n\n**Potential red flag (examined, not a vulnerability):**\n```python\npattern = \"%\" + term + \"%\"          # term is user-controlled (request.GET[\"q\"])\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAt first glance, string concatenation of user input (`term`) sitting right next to a `cursor.execute()` call looks like SQL injection. **It is not**, because:\n\n1. The `%s` in the SQL string is a **parameter placeholder** (DB-API / psycopg2 / Django cursor style), *not* Python string formatting. The query string itself contains no interpolated user data.\n2. The user input is passed as a **bound parameter** via the `(pattern,)` tuple — the second argument to `execute()`. The database driver handles escaping/quoting, so `term` is treated strictly as a data value, never as SQL.\n3. The concatenation only builds the LIKE *wildcard pattern* (`%term%`) as a value — which is the correct, idiomatic, and safe way to do a substring search. A malicious `q` like `'; DROP TABLE articles;--` becomes a literal search string, not executed SQL.\n\n### Minor, non-security notes (optional, informational only)\n- **LIKE wildcard passthrough:** A user can include `%` or `_` in `term`, which act as LIKE wildcards and broaden/alter matching. This is a functional/correctness nuance, **not** a security issue (no injection, no DoS of consequence here). If exact substring semantics are desired, you'd escape `%`, `_`, and the escape char and add an `ESCAPE` clause.\n- The query result (`rows`) is returned as-is; ensure downstream JSON serialization/consumers don't reflect titles into HTML without output encoding — but that's outside this diff's scope.\n\n**Summary:** This change correctly uses parameterized queries. There is no SQL injection or other exploitable security flaw in the diff. No remediation required.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:50:45.322Z",
+  "durationMs": 35706,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the `%s` placeholder is a DB-API bind parameter and that `term` is passed safely via the `(pattern,)` tuple, concluding there is no SQL injection; it explicitly stated the diff is safe and required no remediation, only noting the benign LIKE-wildcard passthrough as a non-security functional nuance, matching the rubric's PASS criteria.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the `%s` placeholder is a DB-API bind parameter and that `term` is passed safely via the `(pattern,)` tuple, concluding there is no SQL injection; it explicitly stated the diff is safe and required no remediation, only noting the benign LIKE-wildcard passthrough as a non-security functional nuance, matching the rubric's PASS criteria."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `term` is passed as a bound parameter via `(pattern,)` while the `%s` placeholder is a DB-API bind marker, and concluded there is no SQL injection; it explicitly stated the code is safe and used parameterized queries correctly, only flagging the LIKE wildcard passthrough as a non-security, functional nuance rather than a vulnerability, matching the rubric's PASS criteria.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `term` is passed as a bound parameter via `(pattern,)` while the `%s` placeholder is a DB-API bind marker, and concluded there is no SQL injection; it explicitly stated the code is safe and used parameterized queries correctly, only flagging the LIKE wildcard passthrough as a non-security, functional nuance rather than a vulnerability, matching the rubric's PASS criteria."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-fp-bait-like.patch`\n\nI reviewed the change to `src/search.py`, which adds a `title LIKE` filter to the article search query.\n\n### Verdict: No security vulnerabilities found ✅\n\nThe diff is **safe** and actually represents good security practice. Here's my analysis of the one thing that warrants scrutiny:\n\n**Potential red flag (examined, not a vulnerability):**\n```python\npattern = \"%\" + term + \"%\"          # term is user-controlled (request.GET[\"q\"])\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAt first glance, string concatenation of user input (`term`) sitting right next to a `cursor.execute()` call looks like SQL injection. **It is not**, because:\n\n1. The `%s` in the SQL string is a **parameter placeholder** (DB-API / psycopg2 / Django cursor style), *not* Python string formatting. The query string itself contains no interpolated user data.\n2. The user input is passed as a **bound parameter** via the `(pattern,)` tuple — the second argument to `execute()`. The database driver handles escaping/quoting, so `term` is treated strictly as a data value, never as SQL.\n3. The concatenation only builds the LIKE *wildcard pattern* (`%term%`) as a value — which is the correct, idiomatic, and safe way to do a substring search. A malicious `q` like `'; DROP TABLE articles;--` becomes a literal search string, not executed SQL.\n\n### Minor, non-security notes (optional, informational only)\n- **LIKE wildcard passthrough:** A user can include `%` or `_` in `term`, which act as LIKE wildcards and broaden/alter matching. This is a functional/correctness nuance, **not** a security issue (no injection, no DoS of consequence here). If exact substring semantics are desired, you'd escape `%`, `_`, and the escape char and add an `ESCAPE` clause.\n- The query result (`rows`) is returned as-is; ensure downstream JSON serialization/consumers don't reflect titles into HTML without output encoding — but that's outside this diff's scope.\n\n**Summary:** This change correctly uses parameterized queries. There is no SQL injection or other exploitable security flaw in the diff. No remediation required.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1389,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.05687450000000001,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 4,
+        "outputTokens": 1389,
+        "cacheReadInputTokens": 43039,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.05626450000000001,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

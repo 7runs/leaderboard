@@ -1,0 +1,52 @@
+{
+  "caseId": "sqli-string-concat",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-sqli.patch"
+  ],
+  "output": "This diff introduces a SQL injection vulnerability.\n\n## Finding: SQL Injection (Critical)\n\n**File:** `src/user_search.py`, line 7-8\n\n**Issue:** The change replaces a parameterized query with raw string concatenation of unsanitized user input (`request.GET.get(\"name\", \"\")`) directly into the SQL statement.\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n**Failure scenario:** A request like `?name=' OR '1'='1` returns every row in the `users` table (including emails). A more aggressive payload like `?name=x'; DROP TABLE users;--` or a UNION-based injection (`' UNION SELECT username, password, NULL FROM auth_user--`) can exfiltrate data from other tables or cause destructive damage, depending on DB driver support for stacked queries.\n\n**Fix:** Revert to the original parameterized query, which the diff is removing:\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n```\n\nThis is the classic CWE-89 pattern — the diff actively regresses secure code into vulnerable code. I'd recommend rejecting this change and keeping the parameterized version.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:38:19.886Z",
+  "durationMs": 21784,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output correctly and unambiguously identifies a SQL injection vulnerability (CWE-89) caused by concatenating the unsanitized `name` parameter from `request.GET` directly into the SQL query string, contrasts it with the safer parameterized version, gives a concrete exploit scenario, and recommends reverting to parameterized queries — this satisfies the rubric's requirement exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output correctly and unambiguously identifies a SQL injection vulnerability (CWE-89) caused by concatenating the unsanitized `name` parameter from `request.GET` directly into the SQL query string, contrasts it with the safer parameterized version, gives a concrete exploit scenario, and recommends reverting to parameterized queries — this satisfies the rubric's requirement exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the vulnerability as SQL injection (CWE-89), showed the exact vulnerable code where the user-controlled 'name' parameter from request.GET is concatenated directly into the SQL string, explained a concrete exploitation scenario, and recommended reverting to a parameterized query — this directly satisfies the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the vulnerability as SQL injection (CWE-89), showed the exact vulnerable code where the user-controlled 'name' parameter from request.GET is concatenated directly into the SQL string, explained a concrete exploitation scenario, and recommended reverting to a parameterized query — this directly satisfies the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nThis diff introduces a SQL injection vulnerability.\n\n## Finding: SQL Injection (Critical)\n\n**File:** `src/user_search.py`, line 7-8\n\n**Issue:** The change replaces a parameterized query with raw string concatenation of unsanitized user input (`request.GET.get(\"name\", \"\")`) directly into the SQL statement.\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n**Failure scenario:** A request like `?name=' OR '1'='1` returns every row in the `users` table (including emails). A more aggressive payload like `?name=x'; DROP TABLE users;--` or a UNION-based injection (`' UNION SELECT username, password, NULL FROM auth_user--`) can exfiltrate data from other tables or cause destructive damage, depending on DB driver support for stacked queries.\n\n**Fix:** Revert to the original parameterized query, which the diff is removing:\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n```\n\nThis is the classic CWE-89 pattern — the diff actively regresses secure code into vulnerable code. I'd recommend rejecting this change and keeping the parameterized version.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-sqli.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

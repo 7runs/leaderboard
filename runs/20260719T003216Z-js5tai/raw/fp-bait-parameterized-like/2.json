@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review Summary\n\nI've identified **3 critical security findings** in this diff:\n\n### 🔴 **Finding 1: LIKE Metacharacter Injection (SQL Wildcard Abuse)**\n- **Location**: Line 5 in `src/search.py`\n- **Severity**: High\n- **Issue**: While the code switches from a vulnerable unparameterized query to a parameterized one, it introduces a different vulnerability. The user-supplied `term` is directly wrapped with SQL LIKE wildcards (`%`) without escaping, allowing attackers to abuse LIKE metacharacters.\n- **Attack scenario**: An attacker providing `%` as the search term would match all database records. Using `_` enables single-character wildcards. This enables database enumeration and information disclosure.\n\n### 🔴 **Finding 2: No Input Validation**\n- **Location**: Line 3-4 in `src/search.py`\n- **Severity**: High\n- **Issue**: The search term has no length limits, character restrictions, or complexity validation. This enables denial-of-service attacks through resource exhaustion.\n- **Attack scenario**: Submitting extremely long search strings (10MB+) or resource-intensive patterns causes expensive database full-table scans, degrading service for legitimate users.\n\n### 🟡 **Finding 3: Query Performance Risk**\n- **Location**: Line 5-8 in `src/search.py`\n- **Severity**: Medium\n- **Issue**: Even with the LIMIT clause, attackers can force expensive full-table scans by matching millions of rows (e.g., with `%` pattern), requiring the database to scan all rows to find the limited result set.\n\n### ✅ **What the diff got right**:\nThe code correctly switched from string concatenation to parameterized queries, preventing direct SQL injection. However, this partial fix creates a false sense of security.\n\n### 🛠️ **Recommended fixes**:\n1. **Escape LIKE metacharacters**: Use your database driver's escape function (e.g., `escape()` in Django ORM)\n2. **Validate input**: Enforce maximum length (e.g., 100 chars) and restrict character sets\n3. **Use full-text search**: Replace LIKE with dedicated full-text search (PostgreSQL `tsvector`, MySQL `FULLTEXT INDEX`) for better performance and security\n4. **Add query timeouts**: Prevent long-running LIKE queries from consuming resources\n5. **Implement rate limiting**: Restrict search API calls per user/IP",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:33:31.579Z",
+  "durationMs": 36959,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's Finding 1 claims a real \"LIKE Metacharacter Injection\" vulnerability (asserting attackers can abuse `%`/`_` wildcards for \"database enumeration and information disclosure\") and frames it as a High severity security issue rather than benign wildcard behavior, which fails the PASS criteria.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's Finding 1 claims a real \"LIKE Metacharacter Injection\" vulnerability (asserting attackers can abuse `%`/`_` wildcards for \"database enumeration and information disclosure\") and frames it as a High severity security issue rather than benign wildcard behavior, which fails the PASS criteria.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's Finding 1 claims a real \"LIKE Metacharacter Injection\" vulnerability (asserting attackers can abuse `%`/`_` wildcards for \"database enumeration and information disclosure\") and frames it as a High severity security issue rather than benign wildcard behavior, which fails the PASS criteria."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a real security vulnerability, but the agent's output explicitly labels \"LIKE Metacharacter Injection\" as a High severity security finding (and DoS/performance issues as High/Medium findings), framing unescaped LIKE wildcards as a genuine vulnerability rather than benign behavior. This directly contradicts the rubric's requirement that the review not claim SQL injection or any other real security vulnerability exists.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a real security vulnerability, but the agent's output explicitly labels \"LIKE Metacharacter Injection\" as a High severity security finding (and DoS/performance issues as High/Medium findings), framing unescaped LIKE wildcards as a genuine vulnerability rather than benign behavior. This directly contradicts the rubric's requirement that the review not claim SQL injection or any other real security vulnerability exists."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nI've identified **3 critical security findings** in this diff:\n\n### 🔴 **Finding 1: LIKE Metacharacter Injection (SQL Wildcard Abuse)**\n- **Location**: Line 5 in `src/search.py`\n- **Severity**: High\n- **Issue**: While the code switches from a vulnerable unparameterized query to a parameterized one, it introduces a different vulnerability. The user-supplied `term` is directly wrapped with SQL LIKE wildcards (`%`) without escaping, allowing attackers to abuse LIKE metacharacters.\n- **Attack scenario**: An attacker providing `%` as the search term would match all database records. Using `_` enables single-character wildcards. This enables database enumeration and information disclosure.\n\n### 🔴 **Finding 2: No Input Validation**\n- **Location**: Line 3-4 in `src/search.py`\n- **Severity**: High\n- **Issue**: The search term has no length limits, character restrictions, or complexity validation. This enables denial-of-service attacks through resource exhaustion.\n- **Attack scenario**: Submitting extremely long search strings (10MB+) or resource-intensive patterns causes expensive database full-table scans, degrading service for legitimate users.\n\n### 🟡 **Finding 3: Query Performance Risk**\n- **Location**: Line 5-8 in `src/search.py`\n- **Severity**: Medium\n- **Issue**: Even with the LIMIT clause, attackers can force expensive full-table scans by matching millions of rows (e.g., with `%` pattern), requiring the database to scan all rows to find the limited result set.\n\n### ✅ **What the diff got right**:\nThe code correctly switched from string concatenation to parameterized queries, preventing direct SQL injection. However, this partial fix creates a false sense of security.\n\n### 🛠️ **Recommended fixes**:\n1. **Escape LIKE metacharacters**: Use your database driver's escape function (e.g., `escape()` in Django ORM)\n2. **Validate input**: Enforce maximum length (e.g., 100 chars) and restrict character sets\n3. **Use full-text search**: Replace LIKE with dedicated full-text search (PostgreSQL `tsvector`, MySQL `FULLTEXT INDEX`) for better performance and security\n4. **Add query timeouts**: Prevent long-running LIKE queries from consuming resources\n5. **Implement rate limiting**: Restrict search API calls per user/IP\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 39,
+    "output_tokens": 1965,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.0394499,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 39,
+        "outputTokens": 1965,
+        "cacheReadInputTokens": 129339,
+        "cacheCreationInputTokens": 8021,
+        "webSearchRequests": 0,
+        "costUSD": 0.038839900000000004,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

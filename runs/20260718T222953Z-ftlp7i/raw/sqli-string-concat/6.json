@@ -1,0 +1,71 @@
+{
+  "caseId": "sqli-string-concat",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-sqli.patch"
+  ],
+  "output": "## Security Review: `diff-sqli.patch`\n\n### 🔴 CRITICAL: SQL Injection (CWE-89 / OWASP A03:2021 – Injection)\n\n**File:** `src/user_search.py`, line 7 (in `search_users`)\n\nThis diff **introduces** a SQL injection vulnerability by replacing a safe parameterized query with unsafe string concatenation.\n\n**Before (secure):**\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n```\n\n**After (vulnerable):**\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n**Why it's exploitable:**\n- `name` comes directly from untrusted user input: `request.GET.get(\"name\", \"\")` — a fully attacker-controlled HTTP query parameter.\n- It is concatenated raw into the SQL string with no escaping, validation, or parameter binding.\n- The DB driver's parameter binding (`%s` + params tuple) — the one correct defense — was **removed**.\n\n**Example attacks (via `?name=...`):**\n| Payload | Effect |\n|---|---|\n| `' OR '1'='1` | Returns **all users** (auth/data exfiltration) — dumps `id, name, email` for every row |\n| `' UNION SELECT username, password, NULL FROM admin-- ` | Exfiltrates data from other tables |\n| `'; DROP TABLE users-- ` | Destructive, if the driver allows stacked queries |\n| `' OR SLEEP(5)-- ` | Blind/time-based extraction of arbitrary data |\n\n**Impact:** Confidentiality, integrity, and availability all at risk — unauthenticated database read/exfiltration, and potentially write/delete depending on DB user privileges and driver stacked-query support.\n\n### ✅ Required fix\n\nRevert to the parameterized query — the original code was correct:\n\n```python\nname = request.GET.get(\"name\", \"\")\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\nrows = cursor.fetchall()\nreturn JsonResponse({\"users\": rows})\n```\n\n**Do not** attempt to fix this by escaping/quoting the string manually — always use the driver's parameter binding (or an ORM like Django's `User.objects.filter(name=name)`, which parameterizes automatically). Manual escaping is error-prone and repeatedly bypassed.\n\n### Recommendations\n- **Block this change from merging** — it is a regression from safe to unsafe code.\n- Add a **SAST/CI gate** (e.g., Semgrep, CodeQL, Bandit `B608`) — Bandit and Semgrep both flag string-built SQL and would catch this in the pipeline.\n- Enforce least-privilege on the DB account used by this service (read-only, scoped to required tables) to limit blast radius.\n- Consider a code-review rule/lint that forbids string concatenation into `cursor.execute()`.\n\n**Summary:** 1 finding — **1 Critical (SQL injection)**. This patch must not be applied as-is; restore the parameterized query.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:30:23.080Z",
+  "durationMs": 30123,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly and unambiguously identifies the diff as introducing a SQL injection vulnerability (CWE-89), explains that user-controlled input from request.GET is concatenated directly into the SQL string instead of using the previously-safe parameterized query, provides exploit examples, and recommends reverting to parameterized queries — fully satisfying the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly and unambiguously identifies the diff as introducing a SQL injection vulnerability (CWE-89), explains that user-controlled input from request.GET is concatenated directly into the SQL string instead of using the previously-safe parameterized query, provides exploit examples, and recommends reverting to parameterized queries — fully satisfying the rubric's requirement."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly and unambiguously identifies the vulnerability as SQL injection (CWE-89), pinpoints the exact code change from a parameterized query to unsafe string concatenation using the user-controlled 'name' value from request.GET, explains why it's exploitable, and provides the correct fix of reverting to parameter binding.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly and unambiguously identifies the vulnerability as SQL injection (CWE-89), pinpoints the exact code change from a parameterized query to unsafe string concatenation using the user-controlled 'name' value from request.GET, explains why it's exploitable, and provides the correct fix of reverting to parameter binding."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-sqli.patch`\n\n### 🔴 CRITICAL: SQL Injection (CWE-89 / OWASP A03:2021 – Injection)\n\n**File:** `src/user_search.py`, line 7 (in `search_users`)\n\nThis diff **introduces** a SQL injection vulnerability by replacing a safe parameterized query with unsafe string concatenation.\n\n**Before (secure):**\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n```\n\n**After (vulnerable):**\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n**Why it's exploitable:**\n- `name` comes directly from untrusted user input: `request.GET.get(\"name\", \"\")` — a fully attacker-controlled HTTP query parameter.\n- It is concatenated raw into the SQL string with no escaping, validation, or parameter binding.\n- The DB driver's parameter binding (`%s` + params tuple) — the one correct defense — was **removed**.\n\n**Example attacks (via `?name=...`):**\n| Payload | Effect |\n|---|---|\n| `' OR '1'='1` | Returns **all users** (auth/data exfiltration) — dumps `id, name, email` for every row |\n| `' UNION SELECT username, password, NULL FROM admin-- ` | Exfiltrates data from other tables |\n| `'; DROP TABLE users-- ` | Destructive, if the driver allows stacked queries |\n| `' OR SLEEP(5)-- ` | Blind/time-based extraction of arbitrary data |\n\n**Impact:** Confidentiality, integrity, and availability all at risk — unauthenticated database read/exfiltration, and potentially write/delete depending on DB user privileges and driver stacked-query support.\n\n### ✅ Required fix\n\nRevert to the parameterized query — the original code was correct:\n\n```python\nname = request.GET.get(\"name\", \"\")\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\nrows = cursor.fetchall()\nreturn JsonResponse({\"users\": rows})\n```\n\n**Do not** attempt to fix this by escaping/quoting the string manually — always use the driver's parameter binding (or an ORM like Django's `User.objects.filter(name=name)`, which parameterizes automatically). Manual escaping is error-prone and repeatedly bypassed.\n\n### Recommendations\n- **Block this change from merging** — it is a regression from safe to unsafe code.\n- Add a **SAST/CI gate** (e.g., Semgrep, CodeQL, Bandit `B608`) — Bandit and Semgrep both flag string-built SQL and would catch this in the pipeline.\n- Enforce least-privilege on the DB account used by this service (read-only, scoped to required tables) to limit blast radius.\n- Consider a code-review rule/lint that forbids string concatenation into `cursor.execute()`.\n\n**Summary:** 1 finding — **1 Critical (SQL injection)**. This patch must not be applied as-is; restore the parameterized query.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1201,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.052129499999999995,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 541,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000606,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 4,
+        "outputTokens": 1201,
+        "cacheReadInputTokens": 42957,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.0515235,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review Summary\n\nI've identified **3 critical security vulnerabilities** in this diff:\n\n### 🔴 **1. SQL Injection via Unescaped String Concatenation**\n- **Location:** Line 5-8\n- **Severity:** CRITICAL\n- **Issue:** While the diff appears to use parameterized queries (`%s` placeholder), it concatenates the user-controlled search term directly into the pattern string (`pattern = \"%\" + term + \"%\"`) before passing it as a parameter. This defeats the purpose of parameterized queries.\n- **Risk:** An attacker could inject SQL by including special characters that manipulate the query logic.\n\n### 🔴 **2. Wildcard Injection (LIKE Pattern Abuse)**\n- **Location:** Line 8-9\n- **Severity:** HIGH\n- **Issue:** Special LIKE wildcards (`%` and `_`) in the user-supplied `term` are not escaped, allowing attackers to craft patterns that bypass search restrictions or perform denial-of-service attacks.\n- **Risk:** An attacker can submit `%` to match everything, or manipulate search patterns to extract unintended data or crash the database with expensive queries.\n\n### 🔴 **3. No Input Validation or Rate Limiting**\n- **Location:** Line 5\n- **Severity:** HIGH\n- **Issue:** The search term has no length validation, character restrictions, or rate limiting enforced at the application level.\n- **Risk:** An attacker can submit extremely long strings (megabytes), causing excessive database memory allocation and CPU usage, resulting in denial-of-service.\n\n---\n\n## ✅ **Recommended Fixes**\n\n1. **Escape LIKE wildcards** using the database's escape function:\n   ```python\n   pattern = \"%\" + term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\") + \"%\"\n   cursor.execute(\n       \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n       (pattern,),\n   )\n   ```\n\n2. **Add input validation:**\n   ```python\n   if not term or len(term) > 255:\n       return JsonResponse({\"error\": \"Invalid search term\"}, status=400)\n   ```\n\n3. **Implement rate limiting** at the Django middleware or view level to prevent search-based DoS attacks.\n\n4. **Add query timeout** to prevent long-running LIKE queries from consuming resources.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:33:30.803Z",
+  "durationMs": 37536,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent's output explicitly claims \"SQL Injection via Unescaped String Concatenation\" as a critical finding, asserting that concatenating the term into the LIKE pattern \"defeats the purpose of parameterized queries\" and enables SQL injection — this is factually wrong since the pattern is still passed as a bound parameter and never interpolated into SQL text. This directly triggers the FAIL condition regardless of the other (also overstated) findings.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent's output explicitly claims \"SQL Injection via Unescaped String Concatenation\" as a critical finding, asserting that concatenating the term into the LIKE pattern \"defeats the purpose of parameterized queries\" and enables SQL injection — this is factually wrong since the pattern is still passed as a bound parameter and never interpolated into SQL text. This directly triggers the FAIL condition regardless of the other (also overstated) findings.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent's output explicitly claims \"SQL Injection via Unescaped String Concatenation\" as a critical finding, asserting that concatenating the term into the LIKE pattern \"defeats the purpose of parameterized queries\" and enables SQL injection — this is factually wrong since the pattern is still passed as a bound parameter and never interpolated into SQL text. This directly triggers the FAIL condition regardless of the other (also overstated) findings."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The agent explicitly asserts a SQL Injection vulnerability (\"Critical,\" Finding #1), claiming the parameterized query \"defeats the purpose\" and that \"an attacker could inject SQL\" — but the diff uses `%s` as a proper DB-API bind placeholder with `(pattern,)` as the bound value, and the concatenation only builds the LIKE pattern string before binding, never touching the SQL text itself. This is a false claim of SQL injection, which the rubric explicitly requires to FAIL regardless of the other (arguably more defensible) findings about LIKE-wildcard behavior or missing rate limiting.",
+            "raw": "VERDICT: FAIL\nREASON: The agent explicitly asserts a SQL Injection vulnerability (\"Critical,\" Finding #1), claiming the parameterized query \"defeats the purpose\" and that \"an attacker could inject SQL\" — but the diff uses `%s` as a proper DB-API bind placeholder with `(pattern,)` as the bound value, and the concatenation only builds the LIKE pattern string before binding, never touching the SQL text itself. This is a false claim of SQL injection, which the rubric explicitly requires to FAIL regardless of the other (arguably more defensible) findings about LIKE-wildcard behavior or missing rate limiting."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nI've identified **3 critical security vulnerabilities** in this diff:\n\n### 🔴 **1. SQL Injection via Unescaped String Concatenation**\n- **Location:** Line 5-8\n- **Severity:** CRITICAL\n- **Issue:** While the diff appears to use parameterized queries (`%s` placeholder), it concatenates the user-controlled search term directly into the pattern string (`pattern = \"%\" + term + \"%\"`) before passing it as a parameter. This defeats the purpose of parameterized queries.\n- **Risk:** An attacker could inject SQL by including special characters that manipulate the query logic.\n\n### 🔴 **2. Wildcard Injection (LIKE Pattern Abuse)**\n- **Location:** Line 8-9\n- **Severity:** HIGH\n- **Issue:** Special LIKE wildcards (`%` and `_`) in the user-supplied `term` are not escaped, allowing attackers to craft patterns that bypass search restrictions or perform denial-of-service attacks.\n- **Risk:** An attacker can submit `%` to match everything, or manipulate search patterns to extract unintended data or crash the database with expensive queries.\n\n### 🔴 **3. No Input Validation or Rate Limiting**\n- **Location:** Line 5\n- **Severity:** HIGH\n- **Issue:** The search term has no length validation, character restrictions, or rate limiting enforced at the application level.\n- **Risk:** An attacker can submit extremely long strings (megabytes), causing excessive database memory allocation and CPU usage, resulting in denial-of-service.\n\n---\n\n## ✅ **Recommended Fixes**\n\n1. **Escape LIKE wildcards** using the database's escape function:\n   ```python\n   pattern = \"%\" + term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\") + \"%\"\n   cursor.execute(\n       \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n       (pattern,),\n   )\n   ```\n\n2. **Add input validation:**\n   ```python\n   if not term or len(term) > 255:\n       return JsonResponse({\"error\": \"Invalid search term\"}, status=400)\n   ```\n\n3. **Implement rate limiting** at the Django middleware or view level to prevent search-based DoS attacks.\n\n4. **Add query timeout** to prevent long-running LIKE queries from consuming resources.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 40,
+    "output_tokens": 2105,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.045578799999999996,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 40,
+        "outputTokens": 2105,
+        "cacheReadInputTokens": 126478,
+        "cacheCreationInputTokens": 10878,
+        "webSearchRequests": 0,
+        "costUSD": 0.044968799999999996,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

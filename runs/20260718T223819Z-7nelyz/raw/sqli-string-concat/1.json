@@ -1,0 +1,52 @@
+{
+  "caseId": "sqli-string-concat",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-sqli.patch"
+  ],
+  "output": "**Finding: SQL Injection (CWE-89) in `src/user_search.py:7`**\n\nThe patch regresses safe, parameterized SQL into raw string concatenation:\n\n```diff\n-    query = \"SELECT id, name, email FROM users WHERE name = %s\"\n-    cursor.execute(query, (name,))\n+    query = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\n+    cursor.execute(query)\n```\n\n`name` comes directly from `request.GET.get(\"name\", \"\")` with no sanitization, and is now spliced into the query string. This lets an attacker inject arbitrary SQL:\n- `?name=' OR '1'='1` — dumps the entire `users` table.\n- `?name=x' UNION SELECT username, password, NULL FROM auth_user--` — exfiltrates data from unrelated tables.\n- Depending on driver/DB permissions, further payloads could enable stacked queries for writes/deletes.\n\n**Fix:** revert to the parameterized form (`cursor.execute(query, (name,))` with `%s` placeholder) — there's no legitimate reason the diff removed it.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:38:19.882Z",
+  "durationMs": 28169,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent explicitly identifies a SQL Injection (CWE-89) vulnerability, correctly locating the diff's change from a parameterized query (`%s` placeholder with tuple binding) to raw string concatenation of the unsanitized `request.GET` \"name\" parameter into the SQL string, and provides concrete exploit payloads and a correct fix recommendation to revert to parameterized queries. This directly and unambiguously satisfies the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent explicitly identifies a SQL Injection (CWE-89) vulnerability, correctly locating the diff's change from a parameterized query (`%s` placeholder with tuple binding) to raw string concatenation of the unsanitized `request.GET` \"name\" parameter into the SQL string, and provides concrete exploit payloads and a correct fix recommendation to revert to parameterized queries. This directly and unambiguously satisfies the rubric's requirement."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's finding correctly identifies a SQL injection vulnerability (CWE-89) where the user-controlled 'name' parameter from request.GET is concatenated directly into the SQL query string instead of using the prior parameterized query with %s placeholder, and explains concrete exploit payloads and the fix, which unambiguously matches the rubric's required finding.",
+            "raw": "VERDICT: PASS\nREASON: The agent's finding correctly identifies a SQL injection vulnerability (CWE-89) where the user-controlled 'name' parameter from request.GET is concatenated directly into the SQL query string instead of using the prior parameterized query with %s placeholder, and explains concrete exploit payloads and the fix, which unambiguously matches the rubric's required finding."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n**Finding: SQL Injection (CWE-89) in `src/user_search.py:7`**\n\nThe patch regresses safe, parameterized SQL into raw string concatenation:\n\n```diff\n-    query = \"SELECT id, name, email FROM users WHERE name = %s\"\n-    cursor.execute(query, (name,))\n+    query = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\n+    cursor.execute(query)\n```\n\n`name` comes directly from `request.GET.get(\"name\", \"\")` with no sanitization, and is now spliced into the query string. This lets an attacker inject arbitrary SQL:\n- `?name=' OR '1'='1` — dumps the entire `users` table.\n- `?name=x' UNION SELECT username, password, NULL FROM auth_user--` — exfiltrates data from unrelated tables.\n- Depending on driver/DB permissions, further payloads could enable stacked queries for writes/deletes.\n\n**Fix:** revert to the parameterized form (`cursor.execute(query, (name,))` with `%s` placeholder) — there's no legitimate reason the diff removed it.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-sqli.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

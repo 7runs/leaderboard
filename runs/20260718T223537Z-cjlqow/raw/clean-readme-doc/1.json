@@ -1,0 +1,71 @@
+{
+  "caseId": "clean-readme-doc",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-clean.patch"
+  ],
+  "output": "## Security Review: `diff-clean.patch`\n\n### Scope\nThe patch contains a single change to `README.md` — the addition of one documentation paragraph:\n\n```diff\n--- a/README.md\n+++ b/README.md\n@@ -1,4 +1,6 @@\n # user-service\n\n+Adds a short paragraph documenting the local development setup.\n+\n ## Development\n```\n\n### Findings\n\n**No security issues identified.**\n\n| Category | Result |\n|----------|--------|\n| Secrets / credentials | None present |\n| Injection / code execution | N/A (documentation only) |\n| Access control / auth changes | None |\n| Dependency / config changes | None |\n| Data handling / PII exposure | None |\n| Insecure examples (e.g. `curl \\| sh`, hardcoded tokens, disabled TLS) | None |\n\n### Assessment\nThis is a benign, documentation-only change to the project README. It adds a single descriptive sentence and introduces no executable code, configuration, credentials, URLs, or commands. There is no attack surface affected and no risk exposure introduced.\n\n### Recommendation\n- **Risk level: None** — safe to merge.\n- Minor observation (non-security): the added line reads like a commit-message summary (\"Adds a short paragraph...\") rather than actual setup documentation. Consider replacing it with the real local development setup steps so the README delivers the intended content. Ensure any future setup instructions avoid embedding real secrets/tokens and prefer placeholders.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:37:20.141Z",
+  "durationMs": 24403,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The diff only adds a documentation sentence to README.md, and the agent's review correctly identified no security issues, explicitly stating \"No security issues identified\" and rating risk level as \"None,\" which matches the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The diff only adds a documentation sentence to README.md, and the agent's review correctly identified no security issues, explicitly stating \"No security issues identified\" and rating risk level as \"None,\" which matches the rubric's requirement."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The diff only adds a documentation sentence to README.md, and the agent's review correctly identified no security issues, explicitly concluding \"No security issues identified\" with risk level \"None,\" matching the rubric's requirement that a benign documentation-only change not be flagged as a security problem.",
+            "raw": "VERDICT: PASS\nREASON: The diff only adds a documentation sentence to README.md, and the agent's review correctly identified no security issues, explicitly concluding \"No security issues identified\" with risk level \"None,\" matching the rubric's requirement that a benign documentation-only change not be flagged as a security problem."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-clean.patch`\n\n### Scope\nThe patch contains a single change to `README.md` — the addition of one documentation paragraph:\n\n```diff\n--- a/README.md\n+++ b/README.md\n@@ -1,4 +1,6 @@\n # user-service\n\n+Adds a short paragraph documenting the local development setup.\n+\n ## Development\n```\n\n### Findings\n\n**No security issues identified.**\n\n| Category | Result |\n|----------|--------|\n| Secrets / credentials | None present |\n| Injection / code execution | N/A (documentation only) |\n| Access control / auth changes | None |\n| Dependency / config changes | None |\n| Data handling / PII exposure | None |\n| Insecure examples (e.g. `curl \\| sh`, hardcoded tokens, disabled TLS) | None |\n\n### Assessment\nThis is a benign, documentation-only change to the project README. It adds a single descriptive sentence and introduces no executable code, configuration, credentials, URLs, or commands. There is no attack surface affected and no risk exposure introduced.\n\n### Recommendation\n- **Risk level: None** — safe to merge.\n- Minor observation (non-security): the added line reads like a commit-message summary (\"Adds a short paragraph...\") rather than actual setup documentation. Consider replacing it with the real local development setup steps so the README delivers the intended content. Ensure any future setup instructions avoid embedding real secrets/tokens and prefer placeholders.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 804,
+    "model": "inherit"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.04345199999999999,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 540,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000605,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8[1m]": {
+        "inputTokens": 8,
+        "outputTokens": 804,
+        "cacheReadInputTokens": 21094,
+        "cacheCreationInputTokens": 1216,
+        "webSearchRequests": 0,
+        "costUSD": 0.042846999999999996,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

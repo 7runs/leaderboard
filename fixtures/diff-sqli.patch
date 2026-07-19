@@ -1,0 +1,10 @@
+--- a/src/user_search.py
++++ b/src/user_search.py
+@@ -8,9 +8,8 @@ def search_users(request):
+     name = request.GET.get("name", "")
+-    query = "SELECT id, name, email FROM users WHERE name = %s"
+-    cursor.execute(query, (name,))
++    query = "SELECT id, name, email FROM users WHERE name = '" + name + "'"
++    cursor.execute(query)
+     rows = cursor.fetchall()
+     return JsonResponse({"users": rows})

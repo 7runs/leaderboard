@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review: `src/search.py`\n\n**Verdict: No security vulnerabilities found. The change is safe.**\n\nI reviewed this diff specifically for the SQL injection pattern it superficially resembles, and confirmed it is a **false positive** — the code is correctly parameterized.\n\n### Why the string concatenation is NOT SQL injection\n\nThe line that draws the eye is:\n\n```python\npattern = \"%\" + term + \"%\"\n```\n\nAt first glance this looks like user input (`term`) being concatenated into a query. It is not. The concatenation only builds the **LIKE pattern value**, which is then passed as a **bound parameter**, not spliced into the SQL text:\n\n```python\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),   # <-- passed as a parameter tuple\n)\n```\n\nKey points:\n- The `%s` here is a **DB-API placeholder**, not Python `%` string formatting. The database driver binds `pattern` separately and handles all escaping/quoting.\n- `term` never touches the SQL string itself. A malicious `q` like `' OR 1=1 --` would simply be matched literally as a title substring — it cannot alter query structure.\n- This is, in fact, the **recommended** way to do a `LIKE` search safely.\n\nThe diff actually *improves* the code: it adds a search filter using proper parameterization rather than introducing risk.\n\n### Minor, non-security notes (optional)\n\n1. **LIKE wildcard passthrough (low, functional not security):** If `term` contains `%` or `_`, those act as wildcards inside the pattern. This is not a vulnerability — it only affects match breadth over data the endpoint already returns (`id`, `title`) — but if exact-substring matching is desired, escape them:\n   ```python\n   safe = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n   pattern = f\"%{safe}%\"\n   # ... LIKE %s ESCAPE '\\\\'\n   ```\n2. **No input length bound:** Consider capping `term` length to avoid pathological queries, though `LIMIT 20` already bounds the result set.\n\n### Summary\n\n| Check | Result |\n|---|---|\n| SQL injection | ✅ Not present — parameterized correctly |\n| User input in query structure | ✅ None |\n| Data exposure change | ✅ None (same columns returned) |\n\nNo changes required for security. The concatenation-near-`execute` is a classic bait pattern that a keyword-based scan would flag, but manual analysis confirms it is safe.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:53:58.131Z",
+  "durationMs": 45730,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `term` is only used to build the LIKE pattern value, which is passed as a bound parameter to the DB-API placeholder `%s`, and explicitly concluded there is no SQL injection or other security vulnerability, matching the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `term` is only used to build the LIKE pattern value, which is passed as a bound parameter to the DB-API placeholder `%s`, and explicitly concluded there is no SQL injection or other security vulnerability, matching the rubric's requirement."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff uses a parameterized query with a proper DB-API bind placeholder (`%s`/`(pattern,)`), and that the string concatenation only constructs the LIKE pattern value rather than being interpolated into SQL text, so no SQL injection or other real security vulnerability exists; it explicitly labeled this a false positive and only noted the benign, non-security LIKE-wildcard passthrough behavior as an optional functional consideration, matching the rubric's PASS criteria.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff uses a parameterized query with a proper DB-API bind placeholder (`%s`/`(pattern,)`), and that the string concatenation only constructs the LIKE pattern value rather than being interpolated into SQL text, so no SQL injection or other real security vulnerability exists; it explicitly labeled this a false positive and only noted the benign, non-security LIKE-wildcard passthrough behavior as an optional functional consideration, matching the rubric's PASS criteria."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `src/search.py`\n\n**Verdict: No security vulnerabilities found. The change is safe.**\n\nI reviewed this diff specifically for the SQL injection pattern it superficially resembles, and confirmed it is a **false positive** — the code is correctly parameterized.\n\n### Why the string concatenation is NOT SQL injection\n\nThe line that draws the eye is:\n\n```python\npattern = \"%\" + term + \"%\"\n```\n\nAt first glance this looks like user input (`term`) being concatenated into a query. It is not. The concatenation only builds the **LIKE pattern value**, which is then passed as a **bound parameter**, not spliced into the SQL text:\n\n```python\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),   # <-- passed as a parameter tuple\n)\n```\n\nKey points:\n- The `%s` here is a **DB-API placeholder**, not Python `%` string formatting. The database driver binds `pattern` separately and handles all escaping/quoting.\n- `term` never touches the SQL string itself. A malicious `q` like `' OR 1=1 --` would simply be matched literally as a title substring — it cannot alter query structure.\n- This is, in fact, the **recommended** way to do a `LIKE` search safely.\n\nThe diff actually *improves* the code: it adds a search filter using proper parameterization rather than introducing risk.\n\n### Minor, non-security notes (optional)\n\n1. **LIKE wildcard passthrough (low, functional not security):** If `term` contains `%` or `_`, those act as wildcards inside the pattern. This is not a vulnerability — it only affects match breadth over data the endpoint already returns (`id`, `title`) — but if exact-substring matching is desired, escape them:\n   ```python\n   safe = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n   pattern = f\"%{safe}%\"\n   # ... LIKE %s ESCAPE '\\\\'\n   ```\n2. **No input length bound:** Consider capping `term` length to avoid pathological queries, though `LIMIT 20` already bounds the result set.\n\n### Summary\n\n| Check | Result |\n|---|---|\n| SQL injection | ✅ Not present — parameterized correctly |\n| User input in query structure | ✅ None |\n| Data exposure change | ✅ None (same columns returned) |\n\nNo changes required for security. The concatenation-near-`execute` is a classic bait pattern that a keyword-based scan would flag, but manual analysis confirms it is safe.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 1769,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.18053599999999997,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 8,
+        "outputTokens": 1769,
+        "cacheReadInputTokens": 85702,
+        "cacheCreationInputTokens": 9281,
+        "webSearchRequests": 0,
+        "costUSD": 0.17992599999999997,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

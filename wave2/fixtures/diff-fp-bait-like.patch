@@ -1,0 +1,14 @@
+--- a/src/search.py
++++ b/src/search.py
+@@ -2,7 +2,9 @@ from django.http import JsonResponse
+ def search_articles(request):
+     term = request.GET.get("q", "")
+-    cursor.execute("SELECT id, title FROM articles ORDER BY created DESC LIMIT 20")
+-    rows = cursor.fetchall()
++    pattern = "%" + term + "%"
++    cursor.execute(
++        "SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20",
++        (pattern,),
++    )
++    rows = cursor.fetchall()
+     return JsonResponse({"rows": rows})

@@ -1,0 +1,843 @@
+{
+  "benchmark": "7runs flakiness leaderboard \u2014 Phase 1-A",
+  "generated": "2026-07-18",
+  "methodology": {
+    "task": "security review of a code diff",
+    "reps": 7,
+    "judge_model": "claude-sonnet-5",
+    "judge_transport": "claude-agent (D21)",
+    "auth": "subscription via env -u (ANTHROPIC_API_KEY never billed)",
+    "checks": "llm_rubric only, double-judged",
+    "precision_recall": "omitted (no reliable positive_when on free-form output)"
+  },
+  "pricing_note": "Cost = price-table model cost x measured tokens (modeled; run was on subscription). Sonnet-5 is PROMOTIONAL 2/10 per MTok through 2026-08-31, reverting to 3/15 on 2026-09-01 (sonnet rows carry meanCostUsd_standardFromSep1). Opus 5/25, Haiku 1/5. Claude Code = no cost (shell adapter).",
+  "waves": {
+    "wave1": "3 easy cases",
+    "wave2": "3 hard cases",
+    "wave3": "3 hard cases x {sonnet-5,haiku}"
+  },
+  "results": [
+    {
+      "wave": "wave1",
+      "agent": "sa-wsh",
+      "agent_name": "security-auditor",
+      "source": "wshobson/agents",
+      "commit": "c4b82b0",
+      "model": "opus",
+      "runId": "20260718T222953Z-ftlp7i",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.028485,
+      "cases": {
+        "sqli-string-concat": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "cmdi-shell-true": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "clean-readme-doc": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave1",
+      "agent": "cr-wsh",
+      "agent_name": "code-reviewer",
+      "source": "wshobson/agents",
+      "commit": "c4b82b0",
+      "model": "opus",
+      "runId": "20260718T223240Z-ql5qal",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.02972,
+      "cases": {
+        "sqli-string-concat": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "cmdi-shell-true": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "clean-readme-doc": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave1",
+      "agent": "sa-volt",
+      "agent_name": "security-auditor",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "commit": "947b44c",
+      "model": "opus",
+      "runId": "20260718T223537Z-cjlqow",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.029119,
+      "cases": {
+        "sqli-string-concat": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "cmdi-shell-true": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "clean-readme-doc": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave1",
+      "agent": "cc",
+      "agent_name": "Claude Code (restricted Read/Grep/Glob)",
+      "source": "(Anthropic \u2014 our config)",
+      "commit": "-",
+      "model": "sonnet-5",
+      "runId": "20260718T223819Z-7nelyz",
+      "passRate": 0.9524,
+      "ci": [
+        0.7733,
+        0.9915
+      ],
+      "passes": 20,
+      "n": 21,
+      "flakyCases": 1,
+      "disputed": 0,
+      "meanCostUsd": null,
+      "cases": {
+        "sqli-string-concat": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "cmdi-shell-true": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "clean-readme-doc": {
+          "passes": 6,
+          "n": 7,
+          "passRate": 0.8571,
+          "ci": [
+            0.4869,
+            0.9743
+          ],
+          "stability": "flaky"
+        }
+      }
+    },
+    {
+      "wave": "wave2",
+      "agent": "sa-wsh",
+      "agent_name": "security-auditor",
+      "source": "wshobson/agents",
+      "commit": "c4b82b0",
+      "model": "opus",
+      "runId": "20260718T234914Z-h58rkd",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.034311,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave2",
+      "agent": "cr-wsh",
+      "agent_name": "code-reviewer",
+      "source": "wshobson/agents",
+      "commit": "c4b82b0",
+      "model": "opus",
+      "runId": "20260718T235226Z-2mym8k",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.036507,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave2",
+      "agent": "sa-volt",
+      "agent_name": "security-auditor",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "commit": "947b44c",
+      "model": "opus",
+      "runId": "20260718T235548Z-e4igaz",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.03919,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave2",
+      "agent": "cc",
+      "agent_name": "Claude Code (restricted Read/Grep/Glob)",
+      "source": "(Anthropic \u2014 our config)",
+      "commit": "-",
+      "model": "opus",
+      "runId": "20260718T235904Z-me415n",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": null,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave3",
+      "agent": "sa-wsh",
+      "agent_name": "security-auditor",
+      "source": "wshobson/agents",
+      "commit": "c4b82b0",
+      "model": "sonnet-5",
+      "runId": "20260719T001818Z-3q1bbi",
+      "passRate": 0.9524,
+      "ci": [
+        0.7733,
+        0.9915
+      ],
+      "passes": 20,
+      "n": 21,
+      "flakyCases": 1,
+      "disputed": 0,
+      "meanCostUsd": 0.02023,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 6,
+          "n": 7,
+          "passRate": 0.8571,
+          "ci": [
+            0.4869,
+            0.9743
+          ],
+          "stability": "flaky"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      },
+      "meanCostUsd_pricing": "promotional 2/10 per MTok through 2026-08-31",
+      "meanCostUsd_standardFromSep1": 0.030344
+    },
+    {
+      "wave": "wave3",
+      "agent": "cr-wsh",
+      "agent_name": "code-reviewer",
+      "source": "wshobson/agents",
+      "commit": "c4b82b0",
+      "model": "sonnet-5",
+      "runId": "20260719T002230Z-7sfxo1",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.020376,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      },
+      "meanCostUsd_pricing": "promotional 2/10 per MTok through 2026-08-31",
+      "meanCostUsd_standardFromSep1": 0.030563
+    },
+    {
+      "wave": "wave3",
+      "agent": "sa-volt",
+      "agent_name": "security-auditor",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "commit": "947b44c",
+      "model": "sonnet-5",
+      "runId": "20260719T002601Z-gn55m0",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.023521,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      },
+      "meanCostUsd_pricing": "promotional 2/10 per MTok through 2026-08-31",
+      "meanCostUsd_standardFromSep1": 0.035281
+    },
+    {
+      "wave": "wave3",
+      "agent": "cc",
+      "agent_name": "Claude Code (restricted Read/Grep/Glob)",
+      "source": "(Anthropic \u2014 our config)",
+      "commit": "-",
+      "model": "sonnet-5",
+      "runId": "20260719T002918Z-29ue38",
+      "passRate": 1,
+      "ci": [
+        0.8454,
+        1.0
+      ],
+      "passes": 21,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": null,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave3",
+      "agent": "sa-wsh",
+      "agent_name": "security-auditor",
+      "source": "wshobson/agents",
+      "commit": "c4b82b0",
+      "model": "haiku",
+      "runId": "20260719T003216Z-js5tai",
+      "passRate": 0.7619,
+      "ci": [
+        0.5491,
+        0.8937
+      ],
+      "passes": 16,
+      "n": 21,
+      "flakyCases": 1,
+      "disputed": 0,
+      "meanCostUsd": 0.010022,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 2,
+          "n": 7,
+          "passRate": 0.2857,
+          "ci": [
+            0.0822,
+            0.6411
+          ],
+          "stability": "flaky"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave3",
+      "agent": "cr-wsh",
+      "agent_name": "code-reviewer",
+      "source": "wshobson/agents",
+      "commit": "c4b82b0",
+      "model": "haiku",
+      "runId": "20260719T003546Z-zkivh2",
+      "passRate": 0.6667,
+      "ci": [
+        0.4537,
+        0.8281
+      ],
+      "passes": 14,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.00975,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 0,
+          "n": 7,
+          "passRate": 0,
+          "ci": [
+            0,
+            0.3543
+          ],
+          "stability": "stable_fail"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave3",
+      "agent": "sa-volt",
+      "agent_name": "security-auditor",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "commit": "947b44c",
+      "model": "haiku",
+      "runId": "20260719T003934Z-2dv7il",
+      "passRate": 0.6667,
+      "ci": [
+        0.4537,
+        0.8281
+      ],
+      "passes": 14,
+      "n": 21,
+      "flakyCases": 0,
+      "disputed": 0,
+      "meanCostUsd": 0.011848,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 0,
+          "n": 7,
+          "passRate": 0,
+          "ci": [
+            0,
+            0.3543
+          ],
+          "stability": "stable_fail"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    },
+    {
+      "wave": "wave3",
+      "agent": "cc",
+      "agent_name": "Claude Code (restricted Read/Grep/Glob)",
+      "source": "(Anthropic \u2014 our config)",
+      "commit": "-",
+      "model": "haiku",
+      "runId": "20260719T004319Z-93n7a4",
+      "passRate": 0.7619,
+      "ci": [
+        0.5491,
+        0.8937
+      ],
+      "passes": 16,
+      "n": 21,
+      "flakyCases": 1,
+      "disputed": 1,
+      "meanCostUsd": null,
+      "cases": {
+        "obfuscated-cmdi": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        },
+        "fp-bait-parameterized-like": {
+          "passes": 2,
+          "n": 7,
+          "passRate": 0.2857,
+          "ci": [
+            0.0822,
+            0.6411
+          ],
+          "stability": "flaky"
+        },
+        "multifile-xss": {
+          "passes": 7,
+          "n": 7,
+          "passRate": 1,
+          "ci": [
+            0.6457,
+            1
+          ],
+          "stability": "stable_pass"
+        }
+      }
+    }
+  ]
+}

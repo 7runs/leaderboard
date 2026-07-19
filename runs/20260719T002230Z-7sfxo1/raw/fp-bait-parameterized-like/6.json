@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Review: `diff-fp-bait-like.patch`\n\n**No security issues found.**\n\nThe change replaces a hard-coded `SELECT ... LIMIT 20` with a search endpoint that filters by a user-supplied term:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nThis looks superficially like SQL injection (string concatenation building the value), but it isn't:\n\n- The `%s` in the SQL string is a **DB-API parameter placeholder** (psycopg2/MySQLdb style), not Python string formatting — the query text itself is static.\n- `term` is only concatenated into `pattern`, a plain Python string, which is then passed as a **bound parameter** in the second argument to `execute()`. The driver sends it to the database separately from the SQL and it's properly escaped/typed there.\n- There's no f-string, `%`-formatting, or `.format()` applied to the SQL string itself, so no injection vector exists here.\n\nMinor, non-security nit (optional, not worth blocking on):\n- `term` isn't escaping literal `%`/`_` characters before being wrapped in wildcards, so a user's own search term containing `%` or `_` will be interpreted as a LIKE wildcard rather than a literal character (e.g., searching for `100%` matches more than intended). This is a functional/UX quirk, not a vulnerability — parameterization already prevents injection regardless.\n\nNo findings reported.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:24:26.911Z",
+  "durationMs": 30119,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff uses a parameterized query (`%s` DB-API placeholder with `(pattern,)` bound value), and that the string concatenation only builds the LIKE pattern value rather than being interpolated into the SQL text, so no SQL injection exists. It explicitly concluded \"No security issues found\" and only noted a benign functional quirk (unescaped literal `%`/`_` wildcards) without mischaracterizing it as a security vulnerability, matching the rubric's PASS criteria exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff uses a parameterized query (`%s` DB-API placeholder with `(pattern,)` bound value), and that the string concatenation only builds the LIKE pattern value rather than being interpolated into the SQL text, so no SQL injection exists. It explicitly concluded \"No security issues found\" and only noted a benign functional quirk (unescaped literal `%`/`_` wildcards) without mischaracterizing it as a security vulnerability, matching the rubric's PASS criteria exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the `%s` is a DB-API bound parameter and that `term` is only concatenated into the plain Python `pattern` string before being passed as a bound value via `(pattern,)`, never interpolated into the SQL text — so it explicitly concluded there is no SQL injection. It only noted a benign LIKE-wildcard functional quirk without labeling it a security vulnerability, matching the rubric's PASS criteria exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the `%s` is a DB-API bound parameter and that `term` is only concatenated into the plain Python `pattern` string before being passed as a bound value via `(pattern,)`, never interpolated into the SQL text — so it explicitly concluded there is no SQL injection. It only noted a benign LIKE-wildcard functional quirk without labeling it a security vulnerability, matching the rubric's PASS criteria exactly."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Review: `diff-fp-bait-like.patch`\n\n**No security issues found.**\n\nThe change replaces a hard-coded `SELECT ... LIMIT 20` with a search endpoint that filters by a user-supplied term:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nThis looks superficially like SQL injection (string concatenation building the value), but it isn't:\n\n- The `%s` in the SQL string is a **DB-API parameter placeholder** (psycopg2/MySQLdb style), not Python string formatting — the query text itself is static.\n- `term` is only concatenated into `pattern`, a plain Python string, which is then passed as a **bound parameter** in the second argument to `execute()`. The driver sends it to the database separately from the SQL and it's properly escaped/typed there.\n- There's no f-string, `%`-formatting, or `.format()` applied to the SQL string itself, so no injection vector exists here.\n\nMinor, non-security nit (optional, not worth blocking on):\n- `term` isn't escaping literal `%`/`_` characters before being wrapped in wildcards, so a user's own search term containing `%` or `_` will be interpreted as a LIKE wildcard rather than a literal character (e.g., searching for `100%` matches more than intended). This is a functional/UX quirk, not a vulnerability — parameterization already prevents injection regardless.\n\nNo findings reported.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 6,
+    "output_tokens": 1379,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 3,
+    "total_cost_usd": 0.0779203,
+    "modelUsage": {
+      "claude-sonnet-5": {
+        "inputTokens": 6,
+        "outputTokens": 1379,
+        "cacheReadInputTokens": 79511,
+        "cacheCreationInputTokens": 5459,
+        "webSearchRequests": 0,
+        "costUSD": 0.0773103,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      },
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

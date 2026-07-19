@@ -1,0 +1,71 @@
+{
+  "caseId": "sqli-string-concat",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-sqli.patch"
+  ],
+  "output": "## Security Audit Findings — `diff-sqli.patch`\n\n### CRITICAL: SQL Injection (CWE-89) introduced in `src/user_search.py`\n\n**Finding:** The change replaces a safe parameterized query with string concatenation of untrusted user input directly into a SQL statement. This is a regression that introduces a critical, easily exploitable SQL injection vulnerability.\n\n**Evidence (the diff):**\n```python\n# BEFORE (secure — parameterized):\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n\n# AFTER (vulnerable — string concatenation):\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n`name` comes directly from `request.GET.get(\"name\", \"\")` — fully attacker-controlled, unvalidated, and unescaped.\n\n**Exploitability:**\n- `GET /search?name=' OR '1'='1` → dumps all user records (email/PII exposure).\n- `GET /search?name=' UNION SELECT username, password_hash, NULL FROM admins-- ` → exfiltrates data from other tables.\n- Stacked queries / `; DROP TABLE ...` depending on the DB driver → integrity/availability impact.\n\n**Impact:**\n- **Confidentiality:** High — arbitrary read of the database, PII/credential exposure.\n- **Integrity:** High — potential data modification/deletion.\n- **Availability:** Medium–High — destructive queries or resource exhaustion.\n\n**Risk rating:** Critical (e.g., CVSS ~9.8, `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).\n\n### Compliance / standard mappings\n- **OWASP Top 10:** A03:2021 – Injection\n- **CWE:** CWE-89 (SQL Injection), CWE-20 (Improper Input Validation)\n- **PCI DSS:** Req. 6.2.4 / 6.5.1 (injection flaws)\n- **GDPR:** Art. 32 (security of processing) — unauthorized PII disclosure risk\n\n### Remediation (required — block this change)\n1. **Revert to the parameterized query.** The original code was correct:\n   ```python\n   query = \"SELECT id, name, email FROM users WHERE name = %s\"\n   cursor.execute(query, (name,))\n   ```\n   Never build SQL via string concatenation with user input.\n2. **Defense in depth:**\n   - Prefer the ORM (e.g., Django `User.objects.filter(name=name)`) which parameterizes automatically.\n   - Add input validation/allow-listing on `name`.\n   - Enforce least-privilege DB credentials (read-only for search paths).\n   - Add a regression/SAST rule (Bandit `B608`, Semgrep) in CI to fail builds on string-built SQL.\n\n### Recommendation\n**Reject this pull request.** It is a net-negative security regression. Add a CI gate (SAST + unit test with an injection payload) so parameterization cannot be silently removed in the future.\n\n**Summary:** 1 finding — 1 Critical (SQL injection). No other changes in scope. Do not merge until reverted.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:36:10.194Z",
+  "durationMs": 26934,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review clearly and unambiguously identifies the SQL injection vulnerability (CWE-89), correctly explains that the user-controlled `name` parameter from `request.GET` is concatenated directly into the SQL query string instead of using the prior parameterized query, provides exploit examples, and recommends reverting to parameterized queries — fully satisfying the rubric.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review clearly and unambiguously identifies the SQL injection vulnerability (CWE-89), correctly explains that the user-controlled `name` parameter from `request.GET` is concatenated directly into the SQL query string instead of using the prior parameterized query, provides exploit examples, and recommends reverting to parameterized queries — fully satisfying the rubric."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output clearly and unambiguously identifies the SQL injection vulnerability (CWE-89), correctly describing how the parameterized query was replaced with unsafe string concatenation of the user-controlled `name` parameter from `request.GET`, complete with exploit examples and remediation advice, which fully satisfies the rubric.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output clearly and unambiguously identifies the SQL injection vulnerability (CWE-89), correctly describing how the parameterized query was replaced with unsafe string concatenation of the user-controlled `name` parameter from `request.GET`, complete with exploit examples and remediation advice, which fully satisfies the rubric."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Audit Findings — `diff-sqli.patch`\n\n### CRITICAL: SQL Injection (CWE-89) introduced in `src/user_search.py`\n\n**Finding:** The change replaces a safe parameterized query with string concatenation of untrusted user input directly into a SQL statement. This is a regression that introduces a critical, easily exploitable SQL injection vulnerability.\n\n**Evidence (the diff):**\n```python\n# BEFORE (secure — parameterized):\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n\n# AFTER (vulnerable — string concatenation):\nquery = \"SELECT id, name, email FROM users WHERE name = '\" + name + \"'\"\ncursor.execute(query)\n```\n\n`name` comes directly from `request.GET.get(\"name\", \"\")` — fully attacker-controlled, unvalidated, and unescaped.\n\n**Exploitability:**\n- `GET /search?name=' OR '1'='1` → dumps all user records (email/PII exposure).\n- `GET /search?name=' UNION SELECT username, password_hash, NULL FROM admins-- ` → exfiltrates data from other tables.\n- Stacked queries / `; DROP TABLE ...` depending on the DB driver → integrity/availability impact.\n\n**Impact:**\n- **Confidentiality:** High — arbitrary read of the database, PII/credential exposure.\n- **Integrity:** High — potential data modification/deletion.\n- **Availability:** Medium–High — destructive queries or resource exhaustion.\n\n**Risk rating:** Critical (e.g., CVSS ~9.8, `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).\n\n### Compliance / standard mappings\n- **OWASP Top 10:** A03:2021 – Injection\n- **CWE:** CWE-89 (SQL Injection), CWE-20 (Improper Input Validation)\n- **PCI DSS:** Req. 6.2.4 / 6.5.1 (injection flaws)\n- **GDPR:** Art. 32 (security of processing) — unauthorized PII disclosure risk\n\n### Remediation (required — block this change)\n1. **Revert to the parameterized query.** The original code was correct:\n   ```python\n   query = \"SELECT id, name, email FROM users WHERE name = %s\"\n   cursor.execute(query, (name,))\n   ```\n   Never build SQL via string concatenation with user input.\n2. **Defense in depth:**\n   - Prefer the ORM (e.g., Django `User.objects.filter(name=name)`) which parameterizes automatically.\n   - Add input validation/allow-listing on `name`.\n   - Enforce least-privilege DB credentials (read-only for search paths).\n   - Add a regression/SAST rule (Bandit `B608`, Semgrep) in CI to fail builds on string-built SQL.\n\n### Recommendation\n**Reject this pull request.** It is a net-negative security regression. Add a CI gate (SAST + unit test with an injection payload) so parameterization cannot be silently removed in the future.\n\n**Summary:** 1 finding — 1 Critical (SQL injection). No other changes in scope. Do not merge until reverted.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1198,
+    "model": "inherit"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.035697999999999994,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 541,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000606,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8[1m]": {
+        "inputTokens": 4,
+        "outputTokens": 1198,
+        "cacheReadInputTokens": 10244,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.035092,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

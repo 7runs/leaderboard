@@ -1,0 +1,71 @@
+{
+  "caseId": "clean-readme-doc",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-clean.patch"
+  ],
+  "output": "I reviewed the diff. Here's my assessment.\n\n## Security Review: `diff-clean.patch`\n\n**Scope:** 1 file changed, 2 lines added, 0 removed.\n\n```diff\n--- a/README.md\n+++ b/README.md\n@@ -1,4 +1,6 @@\n # user-service\n\n+Adds a short paragraph documenting the local development setup.\n+\n ## Development\n```\n\n### Findings\n\n**No security issues found.**\n\nThe entire change is documentation-only: it inserts one prose sentence into `README.md`. There is:\n\n- **No executable code** — nothing that runs at build, test, or runtime.\n- **No secrets, credentials, tokens, or connection strings** in the added text.\n- **No configuration, infrastructure, dependency, or CI/CD changes.**\n- **No shell commands, URLs, or copy-paste instructions** that a developer might blindly execute (the added line is descriptive, not a command).\n- **No injection, auth, crypto, or input-handling surface** touched.\n\n### Notes / caveats\n\n- This patch is trivially small (148 bytes, one hunk). If it's meant to represent a larger changeset, only the README hunk is present in the file you provided — double-check that the full diff was exported. A genuine security review of `user-service` would want to see the actual application code, dependency manifests, and config, none of which appear here.\n- Minor (non-security) nit: the added sentence reads like a commit-message description (\"*Adds* a short paragraph documenting the local development setup\") rather than the setup documentation itself. You may want the paragraph to actually contain the local dev steps, not a description of them.\n\n**Verdict:** Safe to merge from a security standpoint — nothing to remediate.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:34:24.983Z",
+  "durationMs": 30195,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The diff is purely documentation (adding two lines to README.md), and the agent correctly identified no security issues, explicitly stating \"No security issues found\" with clear reasoning, without inventing or asserting any vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The diff is purely documentation (adding two lines to README.md), and the agent correctly identified no security issues, explicitly stating \"No security issues found\" with clear reasoning, without inventing or asserting any vulnerability."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The diff is purely a documentation addition to README.md, and the agent's review correctly identified this, reporting no security issues found and explicitly stating the change contains no code, secrets, config, or executable content — accurately matching the benign nature of the diff without inventing any vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The diff is purely a documentation addition to README.md, and the agent's review correctly identified this, reporting no security issues found and explicitly stating the change contains no code, secrets, config, or executable content — accurately matching the benign nature of the diff without inventing any vulnerability."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed the diff. Here's my assessment.\n\n## Security Review: `diff-clean.patch`\n\n**Scope:** 1 file changed, 2 lines added, 0 removed.\n\n```diff\n--- a/README.md\n+++ b/README.md\n@@ -1,4 +1,6 @@\n # user-service\n\n+Adds a short paragraph documenting the local development setup.\n+\n ## Development\n```\n\n### Findings\n\n**No security issues found.**\n\nThe entire change is documentation-only: it inserts one prose sentence into `README.md`. There is:\n\n- **No executable code** — nothing that runs at build, test, or runtime.\n- **No secrets, credentials, tokens, or connection strings** in the added text.\n- **No configuration, infrastructure, dependency, or CI/CD changes.**\n- **No shell commands, URLs, or copy-paste instructions** that a developer might blindly execute (the added line is descriptive, not a command).\n- **No injection, auth, crypto, or input-handling surface** touched.\n\n### Notes / caveats\n\n- This patch is trivially small (148 bytes, one hunk). If it's meant to represent a larger changeset, only the README hunk is present in the file you provided — double-check that the full diff was exported. A genuine security review of `user-service` would want to see the actual application code, dependency manifests, and config, none of which appear here.\n- Minor (non-security) nit: the added sentence reads like a commit-message description (\"*Adds* a short paragraph documenting the local development setup\") rather than the setup documentation itself. You may want the paragraph to actually contain the local dev steps, not a description of them.\n\n**Verdict:** Safe to merge from a security standpoint — nothing to remediate.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 6,
+    "output_tokens": 1012,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 3,
+    "total_cost_usd": 0.14631300000000003,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 540,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000605,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 6,
+        "outputTokens": 1012,
+        "cacheReadInputTokens": 61156,
+        "cacheCreationInputTokens": 8980,
+        "webSearchRequests": 0,
+        "costUSD": 0.145708,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

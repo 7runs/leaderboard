@@ -1,0 +1,71 @@
+{
+  "caseId": "sqli-string-concat",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-sqli.patch"
+  ],
+  "output": "## Security Audit Findings — `diff-sqli.patch`\n\n### 🔴 CRITICAL: SQL Injection Introduced (CWE-89)\n\n**File:** `src/user_search.py` — function `search_users`\n**Lines:** 5–8 of the diff\n\n**The change makes the code less secure.** The diff *removes* a safe, parameterized query and *replaces* it with unsafe string concatenation.\n\n| | Code | Assessment |\n|---|---|---|\n| **Before (removed)** | `query = \"SELECT id, name, email FROM users WHERE name = %s\"`<br>`cursor.execute(query, (name,))` | ✅ Safe — parameterized/bound query |\n| **After (added)** | `query = \"... WHERE name = '\" + name + \"'\"`<br>`cursor.execute(query)` | ❌ Vulnerable — user input concatenated into SQL |\n\n### Analysis\n\n- The `name` value comes directly from untrusted user input: `request.GET.get(\"name\", \"\")`.\n- It is concatenated into the SQL string with no escaping, sanitization, or binding.\n- An attacker can break out of the string literal via a `'` and inject arbitrary SQL.\n\n**Example exploit inputs (`?name=...`):**\n- `' OR '1'='1` → returns all users (data exfiltration / auth bypass logic).\n- `' UNION SELECT username, password, NULL FROM admin_users -- ` → dumps credentials from other tables.\n- `'; DROP TABLE users; -- ` → destructive impact if the driver allows stacked queries.\n\n**Impact:** Full read (and potentially write/delete) access to the database — confidentiality, integrity, and availability all at risk. This is a directly exploitable, unauthenticated vulnerability.\n\n### Remediation (Required — block the merge)\n\nRevert to the parameterized version that was removed:\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n```\n\n**Recommendations:**\n1. **Reject this diff.** It regresses a secure implementation into a vulnerable one — no legitimate reason to switch from bound parameters to concatenation.\n2. **Always use parameterized queries / bound parameters** for all user-influenced SQL. Never build SQL via string concatenation or f-strings.\n3. **Add a CI guardrail:** enable a SAST linter (e.g., Bandit `B608`, Semgrep SQL-injection rules) to fail the build on string-built SQL and prevent this regression from recurring.\n4. **Defense in depth:** apply least-privilege DB credentials (read-only for search endpoints) and input validation/length limits on `name`.\n\n### Summary\n\n| Metric | Value |\n|---|---|\n| Findings | 1 |\n| Critical | 1 (SQL Injection, CWE-89) |\n| Recommendation | **Do not merge** — revert to parameterized query |\n\n**Verdict:** This patch must not be merged. It introduces a critical, exploitable SQL injection by undoing an existing safe parameterized query.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:35:37.753Z",
+  "durationMs": 31242,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent explicitly identifies a critical SQL injection (CWE-89) vulnerability, correctly explains that user-controlled `name` from `request.GET` is concatenated directly into the SQL query string instead of using the previous parameterized query, provides exploit examples, and recommends reverting to parameterized queries — this fully satisfies the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent explicitly identifies a critical SQL injection (CWE-89) vulnerability, correctly explains that user-controlled `name` from `request.GET` is concatenated directly into the SQL query string instead of using the previous parameterized query, provides exploit examples, and recommends reverting to parameterized queries — this fully satisfies the rubric's requirement."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review clearly and correctly identifies a SQL injection vulnerability (CWE-89) in the diff, explaining that user-controlled input from request.GET is concatenated directly into the SQL query string instead of being passed as a parameterized/bound query, and it provides concrete exploit examples and correct remediation guidance.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review clearly and correctly identifies a SQL injection vulnerability (CWE-89) in the diff, explaining that user-controlled input from request.GET is concatenated directly into the SQL query string instead of being passed as a parameterized/bound query, and it provides concrete exploit examples and correct remediation guidance."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Audit Findings — `diff-sqli.patch`\n\n### 🔴 CRITICAL: SQL Injection Introduced (CWE-89)\n\n**File:** `src/user_search.py` — function `search_users`\n**Lines:** 5–8 of the diff\n\n**The change makes the code less secure.** The diff *removes* a safe, parameterized query and *replaces* it with unsafe string concatenation.\n\n| | Code | Assessment |\n|---|---|---|\n| **Before (removed)** | `query = \"SELECT id, name, email FROM users WHERE name = %s\"`<br>`cursor.execute(query, (name,))` | ✅ Safe — parameterized/bound query |\n| **After (added)** | `query = \"... WHERE name = '\" + name + \"'\"`<br>`cursor.execute(query)` | ❌ Vulnerable — user input concatenated into SQL |\n\n### Analysis\n\n- The `name` value comes directly from untrusted user input: `request.GET.get(\"name\", \"\")`.\n- It is concatenated into the SQL string with no escaping, sanitization, or binding.\n- An attacker can break out of the string literal via a `'` and inject arbitrary SQL.\n\n**Example exploit inputs (`?name=...`):**\n- `' OR '1'='1` → returns all users (data exfiltration / auth bypass logic).\n- `' UNION SELECT username, password, NULL FROM admin_users -- ` → dumps credentials from other tables.\n- `'; DROP TABLE users; -- ` → destructive impact if the driver allows stacked queries.\n\n**Impact:** Full read (and potentially write/delete) access to the database — confidentiality, integrity, and availability all at risk. This is a directly exploitable, unauthenticated vulnerability.\n\n### Remediation (Required — block the merge)\n\nRevert to the parameterized version that was removed:\n\n```python\nquery = \"SELECT id, name, email FROM users WHERE name = %s\"\ncursor.execute(query, (name,))\n```\n\n**Recommendations:**\n1. **Reject this diff.** It regresses a secure implementation into a vulnerable one — no legitimate reason to switch from bound parameters to concatenation.\n2. **Always use parameterized queries / bound parameters** for all user-influenced SQL. Never build SQL via string concatenation or f-strings.\n3. **Add a CI guardrail:** enable a SAST linter (e.g., Bandit `B608`, Semgrep SQL-injection rules) to fail the build on string-built SQL and prevent this regression from recurring.\n4. **Defense in depth:** apply least-privilege DB credentials (read-only for search endpoints) and input validation/length limits on `name`.\n\n### Summary\n\n| Metric | Value |\n|---|---|\n| Findings | 1 |\n| Critical | 1 (SQL Injection, CWE-89) |\n| Recommendation | **Do not merge** — revert to parameterized query |\n\n**Verdict:** This patch must not be merged. It introduces a critical, exploitable SQL injection by undoing an existing safe parameterized query.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1137,
+    "model": "inherit"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.034183000000000005,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 541,
+        "outputTokens": 15,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000616,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8[1m]": {
+        "inputTokens": 4,
+        "outputTokens": 1137,
+        "cacheReadInputTokens": 10244,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.033567,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

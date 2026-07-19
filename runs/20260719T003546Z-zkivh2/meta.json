@@ -1,0 +1,91 @@
+{
+  "id": "20260719T003546Z-zkivh2",
+  "label": "wave3",
+  "createdAt": "2026-07-19T00:35:46.331Z",
+  "tool": {
+    "name": "7runs",
+    "version": "0.1.0"
+  },
+  "reps": 7,
+  "concurrency": 4,
+  "timeoutMs": 300000,
+  "filter": null,
+  "suitePath": "./leaderboard/wave3",
+  "suite": {
+    "name": "leaderboard-w3-code-reviewer-wshobson-haiku",
+    "adapter": {
+      "type": "claude-agent",
+      "agent": "leaderboard/agents/wshobson-code-reviewer.md",
+      "model": "claude-haiku-4-5"
+    },
+    "defaults": {
+      "reps": 7,
+      "timeout_s": 300,
+      "judge_model": "claude-sonnet-5",
+      "judge_transport": "claude-agent"
+    },
+    "cases": [
+      {
+        "id": "obfuscated-cmdi",
+        "input": {
+          "prompt": "Review this diff for security issues and report your findings.",
+          "files": [
+            "fixtures/diff-obfuscated-cmdi.patch"
+          ]
+        },
+        "checks": [
+          {
+            "llm_rubric": "The diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import."
+          }
+        ],
+        "label": "positive",
+        "tags": []
+      },
+      {
+        "id": "fp-bait-parameterized-like",
+        "input": {
+          "prompt": "Review this diff for security issues and report your findings.",
+          "files": [
+            "fixtures/diff-fp-bait-like.patch"
+          ]
+        },
+        "checks": [
+          {
+            "llm_rubric": "This diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists."
+          }
+        ],
+        "label": "negative",
+        "tags": []
+      },
+      {
+        "id": "multifile-xss",
+        "input": {
+          "prompt": "Review this diff for security issues and report your findings.",
+          "files": [
+            "fixtures/diff-multifile-xss.patch"
+          ]
+        },
+        "checks": [
+          {
+            "llm_rubric": "The diff introduces a reflected XSS vulnerability that spans two files. In `views.py` the previous `escape(comment)` is removed and the user-controlled `comment` (from request.GET) is now passed through `comment_html(...)`; in `render.py` the new `comment_html` interpolates its argument directly into HTML via an f-string with no escaping. Together, attacker-controlled `comment` is reflected as raw HTML. PASS only if the review identifies a real XSS (cross-site scripting) vulnerability arising from unescaped user input rendered into HTML; FAIL if it misses it (for example by reviewing only one of the two files), concludes the code is safe, or only comments on style."
+          }
+        ],
+        "label": "positive",
+        "tags": []
+      }
+    ]
+  },
+  "caseIds": [
+    "obfuscated-cmdi",
+    "fp-bait-parameterized-like",
+    "multifile-xss"
+  ],
+  "summary": {
+    "cases": 3,
+    "reps": 7,
+    "executions": 21,
+    "passExecutions": 14,
+    "failExecutions": 7
+  },
+  "durationMs": 227479
+}

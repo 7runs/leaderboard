@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review: `diff-fp-bait-like.patch`\n\n**Finding: No security vulnerabilities. The change is safe.**\n\n### What the diff does\nIt adds a title filter to the article search, matching the user's `q` term with a SQL `LIKE`.\n\n### Why it's safe (and the trap to avoid)\nAt first glance the line `pattern = \"%\" + term + \"%\"` looks like classic SQL string concatenation that leads to injection. It is **not**. The concatenation only builds the *value* of the search pattern — it is then passed as a **bound parameter**:\n\n```python\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),   # <-- parameterized; the driver escapes it\n)\n```\n\nThe `%s` here is a DB-API placeholder (not Python string formatting), and `term` never touches the SQL string itself. The database driver sends the query and the parameter separately, so no attacker-controlled input can alter the query structure. **This is the correct, recommended way to do a parameterized `LIKE` search** — it's actually an improvement over injection-prone alternatives like `f\"... LIKE '%{term}%'\"`.\n\n### Minor, non-security notes (informational only)\nThese are **not** vulnerabilities, but worth mentioning:\n\n1. **LIKE metacharacters are not escaped** — a user searching for `%` or `_` will have them interpreted as LIKE wildcards rather than literals. This is a correctness/UX quirk, not a security issue (it cannot break out of the parameter). If literal matching is desired, escape `%`, `_`, and `\\` and add an `ESCAPE` clause.\n2. **Leading-wildcard `LIKE '%term%'`** prevents use of a normal B-tree index, so on large tables this forces a full scan. This is a performance consideration, and only a DoS concern under extreme load — worth a trailing-wildcard or full-text index if the table is large, but not a review blocker.\n\n### Verdict\n✅ **Safe to merge.** The query is properly parameterized; there is no SQL injection or other security defect introduced by this change. The optional escaping/indexing notes can be addressed separately if desired.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:49:46.935Z",
+  "durationMs": 30565,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff uses a parameterized query with `%s` as a DB-API bind placeholder and `(pattern,)` as the bound value, concluding there is no SQL injection since the concatenation only builds the LIKE pattern value rather than being interpolated into the SQL text. It did not assert any real security vulnerability, only noting the benign LIKE-wildcard metacharacter behavior and a performance consideration as non-security informational points, which matches the rubric's PASS criteria.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff uses a parameterized query with `%s` as a DB-API bind placeholder and `(pattern,)` as the bound value, concluding there is no SQL injection since the concatenation only builds the LIKE pattern value rather than being interpolated into the SQL text. It did not assert any real security vulnerability, only noting the benign LIKE-wildcard metacharacter behavior and a performance consideration as non-security informational points, which matches the rubric's PASS criteria."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff uses a parameterized query with `%s` as a DB-API bind placeholder and the concatenation only constructs the LIKE pattern value, never interpolated into SQL text, so it concluded there is no SQL injection. It explicitly avoided the trap of flagging the string concatenation as unsafe, and the two \"minor notes\" it raised (unescaped LIKE wildcards, index/performance impact) are explicitly labeled as non-security correctness/performance considerations rather than vulnerabilities, matching the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff uses a parameterized query with `%s` as a DB-API bind placeholder and the concatenation only constructs the LIKE pattern value, never interpolated into SQL text, so it concluded there is no SQL injection. It explicitly avoided the trap of flagging the string concatenation as unsafe, and the two \"minor notes\" it raised (unescaped LIKE wildcards, index/performance impact) are explicitly labeled as non-security correctness/performance considerations rather than vulnerabilities, matching the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-fp-bait-like.patch`\n\n**Finding: No security vulnerabilities. The change is safe.**\n\n### What the diff does\nIt adds a title filter to the article search, matching the user's `q` term with a SQL `LIKE`.\n\n### Why it's safe (and the trap to avoid)\nAt first glance the line `pattern = \"%\" + term + \"%\"` looks like classic SQL string concatenation that leads to injection. It is **not**. The concatenation only builds the *value* of the search pattern — it is then passed as a **bound parameter**:\n\n```python\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),   # <-- parameterized; the driver escapes it\n)\n```\n\nThe `%s` here is a DB-API placeholder (not Python string formatting), and `term` never touches the SQL string itself. The database driver sends the query and the parameter separately, so no attacker-controlled input can alter the query structure. **This is the correct, recommended way to do a parameterized `LIKE` search** — it's actually an improvement over injection-prone alternatives like `f\"... LIKE '%{term}%'\"`.\n\n### Minor, non-security notes (informational only)\nThese are **not** vulnerabilities, but worth mentioning:\n\n1. **LIKE metacharacters are not escaped** — a user searching for `%` or `_` will have them interpreted as LIKE wildcards rather than literals. This is a correctness/UX quirk, not a security issue (it cannot break out of the parameter). If literal matching is desired, escape `%`, `_`, and `\\` and add an `ESCAPE` clause.\n2. **Leading-wildcard `LIKE '%term%'`** prevents use of a normal B-tree index, so on large tables this forces a full scan. This is a performance consideration, and only a DoS concern under extreme load — worth a trailing-wildcard or full-text index if the table is large, but not a review blocker.\n\n### Verdict\n✅ **Safe to merge.** The query is properly parameterized; there is no SQL injection or other security defect introduced by this change. The optional escaping/indexing notes can be addressed separately if desired.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1196,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.09209700000000001,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 4,
+        "outputTokens": 1196,
+        "cacheReadInputTokens": 39714,
+        "cacheCreationInputTokens": 4171,
+        "webSearchRequests": 0,
+        "costUSD": 0.09148700000000001,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

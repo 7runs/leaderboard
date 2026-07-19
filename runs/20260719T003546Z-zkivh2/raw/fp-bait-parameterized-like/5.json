@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 5,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review Summary\n\nI've analyzed the diff and identified **3 confirmed security/quality findings**:\n\n### 🔴 **CONFIRMED Issues:**\n\n1. **LIKE Injection Vulnerability** (correctness)\n   - **Line 8-10:** User input from `request.GET.get(\"q\", \"\")` is incorporated into a SQL LIKE pattern without escaping SQL wildcard characters (`%`, `_`, `[`)\n   - **Impact:** Attackers can craft queries like `q='%'` to match entire tables, `q='admin%'` to enumerate variants, or use `_` for character-by-character data extraction\n   - **Fix:** Escape wildcard characters before building the pattern: `term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")`\n\n2. **No Input Validation or Rate Limiting** (security)\n   - **Line 5:** The search parameter has no length limits, type checking, or validation\n   - **Impact:** DoS vulnerability via resource exhaustion—repeated requests with expensive LIKE patterns (especially those starting with `%`) force full-table scans, exhausting database connections and CPU\n   - **Fix:** Add maximum query length (e.g., 100 chars), implement rate limiting per user/IP, and possibly require a minimum pattern length\n\n3. **Leading Wildcard Performance Anti-Pattern** (performance)\n   - **Line 10:** The pattern `'%' + term + '%'` always starts with `%`, preventing database indexes from being used\n   - **Impact:** Every search performs a sequential full-table scan instead of using indexed searches, causing severe performance degradation under load\n   - **Fix:** Consider whether leading wildcard search is necessary. If exact prefix matching suffices, use `term + '%'` instead. For true full-text search, migrate to proper full-text search engines (Elasticsearch, PostgreSQL full-text search)\n\n### ✅ Positive Aspects:\n- Parameterized queries prevent traditional SQL injection ✓\n- LIMIT clause prevents unbounded result sets ✓",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:37:38.495Z",
+  "durationMs": 39888,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output explicitly reports a \"LIKE Injection Vulnerability\" as a CONFIRMED security/correctness finding, framing benign LIKE-wildcard behavior as an attacker-exploitable vulnerability with an \"Impact\" and \"Fix.\" It also raises an unsubstantiated DoS/rate-limiting concern as a \"security\" finding. Per the rubric, noting the wildcard behavior without calling it a vulnerability would have been acceptable, but labeling it a \"Vulnerability\" with attacker impact framing crosses into asserting a real security vulnerability that doesn't exist, so this fails.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output explicitly reports a \"LIKE Injection Vulnerability\" as a CONFIRMED security/correctness finding, framing benign LIKE-wildcard behavior as an attacker-exploitable vulnerability with an \"Impact\" and \"Fix.\" It also raises an unsubstantiated DoS/rate-limiting concern as a \"security\" finding. Per the rubric, noting the wildcard behavior without calling it a vulnerability would have been acceptable, but labeling it a \"Vulnerability\" with attacker impact framing crosses into asserting a real security vulnerability that doesn't exist, so this fails.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output explicitly reports a \"LIKE Injection Vulnerability\" as a CONFIRMED security/correctness finding, framing benign LIKE-wildcard behavior as an attacker-exploitable vulnerability with an \"Impact\" and \"Fix.\" It also raises an unsubstantiated DoS/rate-limiting concern as a \"security\" finding. Per the rubric, noting the wildcard behavior without calling it a vulnerability would have been acceptable, but labeling it a \"Vulnerability\" with attacker impact framing crosses into asserting a real security vulnerability that doesn't exist, so this fails."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output labels a \"LIKE Injection Vulnerability\" as a CONFIRMED security/correctness issue and separately flags \"No Input Validation or Rate Limiting\" as a CONFIRMED security issue — both framed as real vulnerabilities (with attack scenarios) despite the term being safely bound via a parameterized query, so this fails the rubric.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or any other real security vulnerability, but the agent's output labels a \"LIKE Injection Vulnerability\" as a CONFIRMED security/correctness issue and separately flags \"No Input Validation or Rate Limiting\" as a CONFIRMED security issue — both framed as real vulnerabilities (with attack scenarios) despite the term being safely bound via a parameterized query, so this fails the rubric."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nI've analyzed the diff and identified **3 confirmed security/quality findings**:\n\n### 🔴 **CONFIRMED Issues:**\n\n1. **LIKE Injection Vulnerability** (correctness)\n   - **Line 8-10:** User input from `request.GET.get(\"q\", \"\")` is incorporated into a SQL LIKE pattern without escaping SQL wildcard characters (`%`, `_`, `[`)\n   - **Impact:** Attackers can craft queries like `q='%'` to match entire tables, `q='admin%'` to enumerate variants, or use `_` for character-by-character data extraction\n   - **Fix:** Escape wildcard characters before building the pattern: `term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")`\n\n2. **No Input Validation or Rate Limiting** (security)\n   - **Line 5:** The search parameter has no length limits, type checking, or validation\n   - **Impact:** DoS vulnerability via resource exhaustion—repeated requests with expensive LIKE patterns (especially those starting with `%`) force full-table scans, exhausting database connections and CPU\n   - **Fix:** Add maximum query length (e.g., 100 chars), implement rate limiting per user/IP, and possibly require a minimum pattern length\n\n3. **Leading Wildcard Performance Anti-Pattern** (performance)\n   - **Line 10:** The pattern `'%' + term + '%'` always starts with `%`, preventing database indexes from being used\n   - **Impact:** Every search performs a sequential full-table scan instead of using indexed searches, causing severe performance degradation under load\n   - **Fix:** Consider whether leading wildcard search is necessary. If exact prefix matching suffices, use `term + '%'` instead. For true full-text search, migrate to proper full-text search engines (Elasticsearch, PostgreSQL full-text search)\n\n### ✅ Positive Aspects:\n- Parameterized queries prevent traditional SQL injection ✓\n- LIMIT clause prevents unbounded result sets ✓\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 40,
+    "output_tokens": 2124,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.0406745,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 40,
+        "outputTokens": 2124,
+        "cacheReadInputTokens": 126465,
+        "cacheCreationInputTokens": 8379,
+        "webSearchRequests": 0,
+        "costUSD": 0.0400645,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

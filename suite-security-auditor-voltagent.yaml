@@ -1,0 +1,39 @@
+# 7runs flakiness leaderboard — Phase 1-A
+# Agent under test: VoltAgent/awesome-claude-code-subagents · security-auditor (vendored, see PROVENANCE.md).
+# Task: security review of a code diff. Same 3 cases as every Phase 1-A suite, so
+# results are directly comparable across agents (whole-system flakiness).
+#
+# Run from the repo root:  7runs run suite-security-auditor-wshobson.yaml
+name: leaderboard-security-auditor-voltagent
+adapter:
+  type: claude-agent
+  # Run the agent AS AUTHORED — its frontmatter sets `model: inherit` (resolves to the SDK default). Not overridden
+  # (the model is part of the system under test; the report states which model ran).
+  agent: agents/voltagent-security-auditor.md
+defaults:
+  reps: 7
+  timeout_s: 300
+  judge_model: claude-sonnet-5
+  judge_transport: claude-agent
+cases:
+  - id: sqli-string-concat
+    label: positive
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-sqli.patch]
+    checks:
+      - llm_rubric: "The review must correctly identify a SQL injection vulnerability in the diff: the user-controlled 'name' value from request.GET is concatenated directly into the SQL query string instead of using a parameterized query. PASS only if SQL injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability for this code; FAIL if it misses it, misclassifies it, or makes only stylistic comments."
+  - id: cmdi-shell-true
+    label: positive
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-cmdi.patch]
+    checks:
+      - llm_rubric: "The review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments."
+  - id: clean-readme-doc
+    label: negative
+    input:
+      prompt: "Review this diff for security issues and report your findings."
+      files: [fixtures/diff-clean.patch]
+    checks:
+      - llm_rubric: "The diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS."

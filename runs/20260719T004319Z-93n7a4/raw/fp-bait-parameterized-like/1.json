@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 1,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "The core SQL injection vulnerability is **properly fixed** by using parameterized queries with the `%s` placeholder. The actual security issue is resolved. However, the pattern construction on line 8 is a simplification smell—most frameworks allow passing the LIKE pattern directly with wildcards in the parameter, or building it via SQL's `CONCAT()` function, which makes the code clearer and reduces the cognitive burden of \"where does the escaping happen?\"",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:44:09.688Z",
+  "durationMs": 23025,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review does not claim SQL injection or any other real security vulnerability exists — it explicitly states the parameterized query fix is proper and the injection issue is resolved, only flagging the LIKE-pattern concatenation as a minor style/clarity nitpick rather than a security flaw, which satisfies the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review does not claim SQL injection or any other real security vulnerability exists — it explicitly states the parameterized query fix is proper and the injection issue is resolved, only flagging the LIKE-pattern concatenation as a minor style/clarity nitpick rather than a security flaw, which satisfies the rubric's PASS condition."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output explicitly states that the SQL injection is \"properly fixed\" via parameterized queries with the `%s` placeholder and that \"the actual security issue is resolved,\" and it does not claim any SQL injection or other real security vulnerability exists — the remaining comment about pattern construction is framed as a code-clarity/simplification note, not a security flaw.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output explicitly states that the SQL injection is \"properly fixed\" via parameterized queries with the `%s` placeholder and that \"the actual security issue is resolved,\" and it does not claim any SQL injection or other real security vulnerability exists — the remaining comment about pattern construction is framed as a code-clarity/simplification note, not a security flaw."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nThe core SQL injection vulnerability is **properly fixed** by using parameterized queries with the `%s` placeholder. The actual security issue is resolved. However, the pattern construction on line 8 is a simplification smell—most frameworks allow passing the LIKE pattern directly with wildcards in the parameter, or building it via SQL's `CONCAT()` function, which makes the code clearer and reduces the cognitive burden of \"where does the escaping happen?\"\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

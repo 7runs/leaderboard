@@ -1,0 +1,53 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "I read the patch. Here's my review.\n\n## Finding: No security vulnerability — the change is safe\n\nThe diff converts a static query into a `LIKE` search on user input. The construction *looks* like SQL injection but is not:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n- The `%s` in the SQL string is a **DB-API parameter placeholder**, not string interpolation. The value is passed separately via the `(pattern,)` tuple, so the driver binds it as data — the user's `term` never becomes part of the SQL text.\n- The `\"%\" + term + \"%\"` concatenation only builds the *value* of the bound parameter (adding LIKE wildcards around the search term). Concatenating into a bound parameter value is safe; injection requires concatenating into the SQL statement itself, which this does not do.\n\nSo there is **no SQL injection here**. Flagging one would be a false positive.\n\n## Minor, non-security notes (optional)\n\n1. **LIKE wildcard \"injection\" (low severity, not a vuln):** Because `term` is placed inside a `LIKE` pattern, a user can supply `%` or `_` to alter match semantics (e.g., `%` matches everything). This only affects *which rows this user's own query returns* — no privilege escalation or data exposure beyond the already-public `id, title`. A leading-wildcard `LIKE '%...%'` also can't use an index, so a pathological term forces a full scan (mild DoS surface, bounded by `LIMIT 20`). If exact-substring semantics matter, escape `%`/`_`/`\\` in `term` before wrapping.\n\n2. Behavioral: empty `q` yields `pattern = \"%%\"`, matching all articles — same effective result as the old code, so likely intended.\n\n**Verdict:** No security issues to report. The parameterization is correct.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:00:18.013Z",
+  "durationMs": 35588,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that `%s` is a DB-API bind placeholder and the pattern concatenation only builds the bound value, never SQL text, and explicitly concluded there is no SQL injection; it only noted the benign LIKE-wildcard behavior as a low-severity, non-security note rather than claiming a real vulnerability, matching the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that `%s` is a DB-API bind placeholder and the pattern concatenation only builds the bound value, never SQL text, and explicitly concluded there is no SQL injection; it only noted the benign LIKE-wildcard behavior as a low-severity, non-security note rather than claiming a real vulnerability, matching the rubric's PASS condition."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the `%s` placeholder is a DB-API bind parameter and the string concatenation only builds the LIKE pattern value bound separately via `(pattern,)`, so it explicitly concluded there is no SQL injection. It only noted benign, non-security observations (LIKE wildcard semantics affecting the user's own query results, and empty-query behavior) without characterizing them as security vulnerabilities, matching the rubric's PASS condition.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the `%s` placeholder is a DB-API bind parameter and the string concatenation only builds the LIKE pattern value bound separately via `(pattern,)`, so it explicitly concluded there is no SQL injection. It only noted benign, non-security observations (LIKE wildcard semantics affecting the user's own query results, and empty-query behavior) without characterizing them as security vulnerabilities, matching the rubric's PASS condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI read the patch. Here's my review.\n\n## Finding: No security vulnerability — the change is safe\n\nThe diff converts a static query into a `LIKE` search on user input. The construction *looks* like SQL injection but is not:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n- The `%s` in the SQL string is a **DB-API parameter placeholder**, not string interpolation. The value is passed separately via the `(pattern,)` tuple, so the driver binds it as data — the user's `term` never becomes part of the SQL text.\n- The `\"%\" + term + \"%\"` concatenation only builds the *value* of the bound parameter (adding LIKE wildcards around the search term). Concatenating into a bound parameter value is safe; injection requires concatenating into the SQL statement itself, which this does not do.\n\nSo there is **no SQL injection here**. Flagging one would be a false positive.\n\n## Minor, non-security notes (optional)\n\n1. **LIKE wildcard \"injection\" (low severity, not a vuln):** Because `term` is placed inside a `LIKE` pattern, a user can supply `%` or `_` to alter match semantics (e.g., `%` matches everything). This only affects *which rows this user's own query returns* — no privilege escalation or data exposure beyond the already-public `id, title`. A leading-wildcard `LIKE '%...%'` also can't use an index, so a pathological term forces a full scan (mild DoS surface, bounded by `LIMIT 20`). If exact-substring semantics matter, escape `%`/`_`/`\\` in `term` before wrapping.\n\n2. Behavioral: empty `q` yields `pattern = \"%%\"`, matching all articles — same effective result as the old code, so likely intended.\n\n**Verdict:** No security issues to report. The parameterization is correct.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-opus-4-8"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

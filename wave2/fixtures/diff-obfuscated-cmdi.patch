@@ -1,0 +1,15 @@
+--- a/src/media/thumbnail.py
++++ b/src/media/thumbnail.py
+@@ -1,10 +1,11 @@
+ import os
+ import subprocess
++import shlex
+ 
+ def make_thumbnail(request):
+     infile = request.GET.get("src", "input.png")
+     size = request.GET.get("size", "100x100")
+     outfile = "thumb.png"
+-    subprocess.run(["convert", infile, "-resize", size, outfile], check=True)
++    parts = ["convert", infile, "-resize", size, outfile]
++    os.system(" ".join(parts))
+     return {"thumb": outfile}

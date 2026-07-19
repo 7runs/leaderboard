@@ -1,0 +1,8 @@
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,6 @@
+ # user-service
+
++Adds a short paragraph documenting the local development setup.
++
+ ## Development

@@ -1,0 +1,54 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "You're right—let me provide a clear summary:\n\n## Security Review Summary\n\nI found **1 confirmed security vulnerability** in the diff:\n\n### LIKE Injection via String Concatenation (src/search.py, line 8)\n\nThe code constructs a SQL LIKE pattern by concatenating the user-supplied search term:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n**Problem:** LIKE has special characters (`%` for any-length wildcard, `_` for single-char wildcard) that aren't escaped. An attacker can inject these to:\n- Change query semantics: `q=50%` → `pattern = \"%50%%\"` matches unintended rows\n- Cause performance degradation: `q=____...` with many underscores forces expensive character-by-character matching\n- Potentially exfiltrate data through timing attacks or behavioral analysis\n\n**Why it matters:** Even though you're using parameterized queries (good!), the *value* being parameterized is attacker-controlled and unsanitized.\n\n**Fix:** Escape LIKE metacharacters before concatenation:\n```python\nescaped_term = term.replace('\\\\', '\\\\\\\\').replace('%', '\\\\%').replace('_', '\\\\_')\npattern = f\"%{escaped_term}%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nOr use a safer alternative like PostgreSQL's `ILIKE` with proper escaping, or switch to full-text search if available.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:44:33.263Z",
+  "durationMs": 32544,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not claim SQL injection or any other real security vulnerability, but the agent's output explicitly labels its finding \"1 confirmed security vulnerability\" and titles it \"LIKE Injection via String Concatenation,\" treating unescaped LIKE metacharacters as a genuine security flaw (including implausible claims like \"exfiltrate data through timing attacks\"). This is not a real security vulnerability — it's benign LIKE-wildcard behavior — so asserting it as a confirmed vulnerability fails the rubric.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not claim SQL injection or any other real security vulnerability, but the agent's output explicitly labels its finding \"1 confirmed security vulnerability\" and titles it \"LIKE Injection via String Concatenation,\" treating unescaped LIKE metacharacters as a genuine security flaw (including implausible claims like \"exfiltrate data through timing attacks\"). This is not a real security vulnerability — it's benign LIKE-wildcard behavior — so asserting it as a confirmed vulnerability fails the rubric.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not claim SQL injection or any other real security vulnerability, but the agent's output explicitly labels its finding \"1 confirmed security vulnerability\" and titles it \"LIKE Injection via String Concatenation,\" treating unescaped LIKE metacharacters as a genuine security flaw (including implausible claims like \"exfiltrate data through timing attacks\"). This is not a real security vulnerability — it's benign LIKE-wildcard behavior — so asserting it as a confirmed vulnerability fails the rubric."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a real security vulnerability, but the agent output claims a \"confirmed security vulnerability\" (LIKE injection) for code that is safe — the parameterized query correctly binds the pattern value, and unescaped `%`/`_` wildcards in a user's own search term only affect that user's own search results (no cross-user data exposure, no injection into SQL syntax). This is a benign LIKE-wildcard behavior at most, not a security vulnerability, so labeling it as a confirmed vulnerability fails the rubric.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a real security vulnerability, but the agent output claims a \"confirmed security vulnerability\" (LIKE injection) for code that is safe — the parameterized query correctly binds the pattern value, and unescaped `%`/`_` wildcards in a user's own search term only affect that user's own search results (no cross-user data exposure, no injection into SQL syntax). This is a benign LIKE-wildcard behavior at most, not a security vulnerability, so labeling it as a confirmed vulnerability fails the rubric."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nYou're right—let me provide a clear summary:\n\n## Security Review Summary\n\nI found **1 confirmed security vulnerability** in the diff:\n\n### LIKE Injection via String Concatenation (src/search.py, line 8)\n\nThe code constructs a SQL LIKE pattern by concatenating the user-supplied search term:\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n**Problem:** LIKE has special characters (`%` for any-length wildcard, `_` for single-char wildcard) that aren't escaped. An attacker can inject these to:\n- Change query semantics: `q=50%` → `pattern = \"%50%%\"` matches unintended rows\n- Cause performance degradation: `q=____...` with many underscores forces expensive character-by-character matching\n- Potentially exfiltrate data through timing attacks or behavioral analysis\n\n**Why it matters:** Even though you're using parameterized queries (good!), the *value* being parameterized is attacker-controlled and unsanitized.\n\n**Fix:** Escape LIKE metacharacters before concatenation:\n```python\nescaped_term = term.replace('\\\\', '\\\\\\\\').replace('%', '\\\\%').replace('_', '\\\\_')\npattern = f\"%{escaped_term}%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nOr use a safer alternative like PostgreSQL's `ILIKE` with proper escaping, or switch to full-text search if available.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

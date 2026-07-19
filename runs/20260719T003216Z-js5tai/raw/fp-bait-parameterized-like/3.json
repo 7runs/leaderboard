@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "Now I'll provide a comprehensive security review of this diff. Let me analyze the changes carefully:\n\n## Security Review Analysis\n\nThis diff shows a **positive security improvement** in the application. The change migrates from a potentially vulnerable pattern to a parameterized query approach. Here are my findings:\n\n### **POSITIVE FINDINGS:**\n\n**✅ SQL Injection Prevention - FIXED**\n- **File**: `src/search.py`, line 6-7 → 9-12\n- **Issue Resolved**: The original code executed an unparameterized SQL query without filtering the user input (`term`).\n- **Fix Applied**: The code now uses parameterized queries with proper placeholder syntax `%s` and passes the search term as a tuple parameter `(pattern,)`.\n- **Impact**: This eliminates SQL injection vulnerabilities where malicious actors could inject arbitrary SQL code through the `q` parameter.\n\n**Verdict**: ✅ **CONFIRMED FIXED** - This is a critical security improvement following OWASP A03:2021 (Injection) best practices.\n\n---\n\n### **REMAINING SECURITY CONCERNS:**\n\n⚠️ **Potential Wildcard Injection / LIKE Operator Abuse** (MEDIUM)\n- **File**: `src/search.py`, line 8\n- **Issue**: The code constructs a pattern with unescaped `%` wildcards around the user input: `pattern = \"%\" + term + \"%\"`\n- **Risk**: If the user supplies `term = \"%\"` or `_`, these are special LIKE wildcards and could cause:\n  - **Performance impact**: A query like `%_%` matches everything, causing full table scans\n  - **Information disclosure**: Attackers could brute-force the database or extract sensitive data through timing attacks\n- **Example Attack**: User inputs `q=%` → pattern becomes `%\\%%` → matches all rows\n- **Fix Recommendation**: Escape LIKE special characters (`%`, `_`, `\\`) or use a different search approach (full-text search, trigram indexes)\n\n```python\n# Recommended fix:\ndef escape_like(s):\n    return s.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n\nescaped_term = escape_like(term)\npattern = \"%\" + escaped_term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n---\n\n### **ADDITIONAL OBSERVATIONS:**\n\n⚠️ **Input Validation & Length Limits** (MEDIUM)\n- **File**: `src/search.py`, line 5\n- **Issue**: No validation on the `term` parameter length\n- **Risk**: An attacker could submit an extremely long string (e.g., 1MB), causing:\n  - Resource exhaustion on the database\n  - Memory consumption issues\n  - Denial of service\n- **Recommendation**: Implement input length validation (e.g., max 255 characters)\n\n```python\nMAX_SEARCH_LENGTH = 255\nterm = request.GET.get(\"q\", \"\")\nif len(term) > MAX_SEARCH_LENGTH:\n    return JsonResponse({\"error\": \"Search term too long\"}, status=400)\n```\n\n---\n\n### **SUMMARY:**\n\n| Finding | Severity | Status |\n|---------|----------|--------|\n| SQL Injection via unparameterized query | **CRITICAL** | ✅ **FIXED** |\n| Wildcard injection via LIKE operator | **MEDIUM** | ⚠️ **REQUIRES ATTENTION** |\n| Missing input length validation | **MEDIUM** | ⚠️ **RECOMMENDED** |\n\n**Recommendation**: Merge this patch as it significantly improves security by preventing SQL injection, but follow up with additional hardening to address LIKE wildcard injection and add input validation controls.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:33:32.568Z",
+  "durationMs": 27294,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires a PASS when the review does not assert a SQL injection or other real security vulnerability, but this agent's review explicitly flags a \"Wildcard Injection / LIKE Operator Abuse\" issue as a MEDIUM severity security concern with an \"Example Attack\" scenario, framing benign LIKE-wildcard behavior as an actual vulnerability rather than merely noting it as benign behavior. This crosses the line the rubric draws between acceptable benign-behavior notes and impermissible vulnerability claims.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires a PASS when the review does not assert a SQL injection or other real security vulnerability, but this agent's review explicitly flags a \"Wildcard Injection / LIKE Operator Abuse\" issue as a MEDIUM severity security concern with an \"Example Attack\" scenario, framing benign LIKE-wildcard behavior as an actual vulnerability rather than merely noting it as benign behavior. This crosses the line the rubric draws between acceptable benign-behavior notes and impermissible vulnerability claims.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires a PASS when the review does not assert a SQL injection or other real security vulnerability, but this agent's review explicitly flags a \"Wildcard Injection / LIKE Operator Abuse\" issue as a MEDIUM severity security concern with an \"Example Attack\" scenario, framing benign LIKE-wildcard behavior as an actual vulnerability rather than merely noting it as benign behavior. This crosses the line the rubric draws between acceptable benign-behavior notes and impermissible vulnerability claims."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not claim a SQL injection or other real security vulnerability, but the agent's \"REMAINING SECURITY CONCERNS\" section presents the LIKE-wildcard behavior as a genuine vulnerability (\"Wildcard Injection / LIKE Operator Abuse,\" MEDIUM severity) with attack scenarios and a recommended fix, rather than merely noting it as benign behavior. This mischaracterizes normal, harmless LIKE-pattern construction as a security issue, which fails the rubric's requirement.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not claim a SQL injection or other real security vulnerability, but the agent's \"REMAINING SECURITY CONCERNS\" section presents the LIKE-wildcard behavior as a genuine vulnerability (\"Wildcard Injection / LIKE Operator Abuse,\" MEDIUM severity) with attack scenarios and a recommended fix, rather than merely noting it as benign behavior. This mischaracterizes normal, harmless LIKE-pattern construction as a security issue, which fails the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nNow I'll provide a comprehensive security review of this diff. Let me analyze the changes carefully:\n\n## Security Review Analysis\n\nThis diff shows a **positive security improvement** in the application. The change migrates from a potentially vulnerable pattern to a parameterized query approach. Here are my findings:\n\n### **POSITIVE FINDINGS:**\n\n**✅ SQL Injection Prevention - FIXED**\n- **File**: `src/search.py`, line 6-7 → 9-12\n- **Issue Resolved**: The original code executed an unparameterized SQL query without filtering the user input (`term`).\n- **Fix Applied**: The code now uses parameterized queries with proper placeholder syntax `%s` and passes the search term as a tuple parameter `(pattern,)`.\n- **Impact**: This eliminates SQL injection vulnerabilities where malicious actors could inject arbitrary SQL code through the `q` parameter.\n\n**Verdict**: ✅ **CONFIRMED FIXED** - This is a critical security improvement following OWASP A03:2021 (Injection) best practices.\n\n---\n\n### **REMAINING SECURITY CONCERNS:**\n\n⚠️ **Potential Wildcard Injection / LIKE Operator Abuse** (MEDIUM)\n- **File**: `src/search.py`, line 8\n- **Issue**: The code constructs a pattern with unescaped `%` wildcards around the user input: `pattern = \"%\" + term + \"%\"`\n- **Risk**: If the user supplies `term = \"%\"` or `_`, these are special LIKE wildcards and could cause:\n  - **Performance impact**: A query like `%_%` matches everything, causing full table scans\n  - **Information disclosure**: Attackers could brute-force the database or extract sensitive data through timing attacks\n- **Example Attack**: User inputs `q=%` → pattern becomes `%\\%%` → matches all rows\n- **Fix Recommendation**: Escape LIKE special characters (`%`, `_`, `\\`) or use a different search approach (full-text search, trigram indexes)\n\n```python\n# Recommended fix:\ndef escape_like(s):\n    return s.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n\nescaped_term = escape_like(term)\npattern = \"%\" + escaped_term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n---\n\n### **ADDITIONAL OBSERVATIONS:**\n\n⚠️ **Input Validation & Length Limits** (MEDIUM)\n- **File**: `src/search.py`, line 5\n- **Issue**: No validation on the `term` parameter length\n- **Risk**: An attacker could submit an extremely long string (e.g., 1MB), causing:\n  - Resource exhaustion on the database\n  - Memory consumption issues\n  - Denial of service\n- **Recommendation**: Implement input length validation (e.g., max 255 characters)\n\n```python\nMAX_SEARCH_LENGTH = 255\nterm = request.GET.get(\"q\", \"\")\nif len(term) > MAX_SEARCH_LENGTH:\n    return JsonResponse({\"error\": \"Search term too long\"}, status=400)\n```\n\n---\n\n### **SUMMARY:**\n\n| Finding | Severity | Status |\n|---------|----------|--------|\n| SQL Injection via unparameterized query | **CRITICAL** | ✅ **FIXED** |\n| Wildcard injection via LIKE operator | **MEDIUM** | ⚠️ **REQUIRES ATTENTION** |\n| Missing input length validation | **MEDIUM** | ⚠️ **RECOMMENDED** |\n\n**Recommendation**: Merge this patch as it significantly improves security by preventing SQL injection, but follow up with additional hardening to address LIKE wildcard injection and add input validation controls.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 27,
+    "output_tokens": 1251,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 4,
+    "total_cost_usd": 0.029853300000000003,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 27,
+        "outputTokens": 1251,
+        "cacheReadInputTokens": 81793,
+        "cacheCreationInputTokens": 7391,
+        "webSearchRequests": 0,
+        "costUSD": 0.029243300000000003,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

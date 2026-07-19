@@ -1,0 +1,54 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 4,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review\n\n**CONFIRMED** ✓ — This diff **fixes a critical SQL injection vulnerability**. The changes are secure:\n\n1. **Before**: The query ignored the search parameter entirely (`term` was unused), returning unfiltered results.\n2. **After**: The code properly uses **parameterized queries** with a placeholder (`%s`) and passes the `term` value separately in a tuple `(pattern,)`.\n\n**Why this matters**: The parameterized approach ensures the database driver escapes special characters automatically, preventing attackers from injecting malicious SQL through the search parameter.\n\n**Best practice verified**: The code follows Django's/Python's standard database safety pattern — the database driver (not the application) constructs the final query, keeping user input strictly in the data layer.\n\nNo security concerns with this implementation.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:44:13.393Z",
+  "durationMs": 19869,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review not to claim a SQL injection or other real security vulnerability exists; instead this agent output explicitly asserts the diff \"fixes a critical SQL injection vulnerability,\" describing the change as remediating an injection flaw. Even though the underlying code is safe and the agent's conclusion (\"no security concerns\") happens to be benign, the review's framing asserts a SQL injection issue (as something fixed) rather than correctly noting there was never an injection vulnerability, which fails the rubric's requirement.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review not to claim a SQL injection or other real security vulnerability exists; instead this agent output explicitly asserts the diff \"fixes a critical SQL injection vulnerability,\" describing the change as remediating an injection flaw. Even though the underlying code is safe and the agent's conclusion (\"no security concerns\") happens to be benign, the review's framing asserts a SQL injection issue (as something fixed) rather than correctly noting there was never an injection vulnerability, which fails the rubric's requirement.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review not to claim a SQL injection or other real security vulnerability exists; instead this agent output explicitly asserts the diff \"fixes a critical SQL injection vulnerability,\" describing the change as remediating an injection flaw. Even though the underlying code is safe and the agent's conclusion (\"no security concerns\") happens to be benign, the review's framing asserts a SQL injection issue (as something fixed) rather than correctly noting there was never an injection vulnerability, which fails the rubric's requirement."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent output explicitly frames the diff around \"fixes a critical SQL injection vulnerability\" and headlines with \"CONFIRMED ✓\" for that claim — even though the underlying technical description (parameterized query, bound placeholder) is accurate and the code is indeed safe. By characterizing the prior/alternate state as a SQL injection vulnerability rather than simply describing the safe parameterization without invoking injection framing, the review fails the rubric's requirement.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent output explicitly frames the diff around \"fixes a critical SQL injection vulnerability\" and headlines with \"CONFIRMED ✓\" for that claim — even though the underlying technical description (parameterized query, bound placeholder) is accurate and the code is indeed safe. By characterizing the prior/alternate state as a SQL injection vulnerability rather than simply describing the safe parameterization without invoking injection framing, the review fails the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review\n\n**CONFIRMED** ✓ — This diff **fixes a critical SQL injection vulnerability**. The changes are secure:\n\n1. **Before**: The query ignored the search parameter entirely (`term` was unused), returning unfiltered results.\n2. **After**: The code properly uses **parameterized queries** with a placeholder (`%s`) and passes the `term` value separately in a tuple `(pattern,)`.\n\n**Why this matters**: The parameterized approach ensures the database driver escapes special characters automatically, preventing attackers from injecting malicious SQL through the search parameter.\n\n**Best practice verified**: The code follows Django's/Python's standard database safety pattern — the database driver (not the application) constructs the final query, keeping user input strictly in the data layer.\n\nNo security concerns with this implementation.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

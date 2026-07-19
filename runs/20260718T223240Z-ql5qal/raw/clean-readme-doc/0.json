@@ -1,0 +1,71 @@
+{
+  "caseId": "clean-readme-doc",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-clean.patch"
+  ],
+  "output": "I reviewed the diff. Here's my finding.\n\n## Security Review: `diff-clean.patch`\n\n**Scope reviewed:** 1 file changed — `README.md` (documentation only)\n\n```diff\n # user-service\n+Adds a short paragraph documenting the local development setup.\n+\n ## Development\n```\n\n### Findings: None\n\nThis diff adds a single line of prose to `README.md`. There is no executable code, configuration, credential, dependency, or infrastructure change in scope, so there is no security-relevant surface to assess:\n\n- ✅ No secrets, tokens, or credentials introduced\n- ✅ No changes to auth, input handling, queries, or crypto\n- ✅ No dependency or build/CI configuration changes\n- ✅ No URLs, install commands, or executable snippets added that could be malicious or point to untrusted sources\n\n**Verdict:** No security issues found. This is a safe, documentation-only change.\n\nOne minor process note (non-security): the paragraph reads like a placeholder (\"Adds a short paragraph documenting the local development setup.\") rather than actual setup instructions — worth confirming the real content lands before merge, but that's a content/quality matter, not a security one.\n\n---\nA couple of environment notes, in case they matter for future runs:\n- The `/security-review` skill requires a **git repository**; this working directory is a temp folder containing only the standalone patch, so I reviewed the patch directly instead. To use the full skill workflow, run it from within the repo.\n- The connected **Linear** MCP server needs authorization (via your claude.ai connector settings) before its tools are usable — not needed for this review, just flagging it.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:34:15.757Z",
+  "durationMs": 37958,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The diff only adds a documentation sentence to README.md, and the agent's review correctly identified this as a documentation-only change with no security-relevant surface, explicitly reporting no security issues found, which matches the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The diff only adds a documentation sentence to README.md, and the agent's review correctly identified this as a documentation-only change with no security-relevant surface, explicitly reporting no security issues found, which matches the rubric's requirement."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The diff is documentation-only, and the agent's review correctly found no security issues, explicitly verifying that no secrets, code, auth, or dependency changes were introduced, matching the rubric's requirement.",
+            "raw": "VERDICT: PASS\nREASON: The diff is documentation-only, and the agent's review correctly found no security issues, explicitly verifying that no secrets, code, auth, or dependency changes were introduced, matching the rubric's requirement."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe diff only adds documentation text to README.md and contains no code or security-relevant change. PASS only if the review reports NO security vulnerability and does not invent or assert any security issue. If the review claims any vulnerability exists, or flags this benign documentation change as a security problem, it FAILS.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nI reviewed the diff. Here's my finding.\n\n## Security Review: `diff-clean.patch`\n\n**Scope reviewed:** 1 file changed — `README.md` (documentation only)\n\n```diff\n # user-service\n+Adds a short paragraph documenting the local development setup.\n+\n ## Development\n```\n\n### Findings: None\n\nThis diff adds a single line of prose to `README.md`. There is no executable code, configuration, credential, dependency, or infrastructure change in scope, so there is no security-relevant surface to assess:\n\n- ✅ No secrets, tokens, or credentials introduced\n- ✅ No changes to auth, input handling, queries, or crypto\n- ✅ No dependency or build/CI configuration changes\n- ✅ No URLs, install commands, or executable snippets added that could be malicious or point to untrusted sources\n\n**Verdict:** No security issues found. This is a safe, documentation-only change.\n\nOne minor process note (non-security): the paragraph reads like a placeholder (\"Adds a short paragraph documenting the local development setup.\") rather than actual setup instructions — worth confirming the real content lands before merge, but that's a content/quality matter, not a security one.\n\n---\nA couple of environment notes, in case they matter for future runs:\n- The `/security-review` skill requires a **git repository**; this working directory is a temp folder containing only the standalone patch, so I reviewed the patch directly instead. To use the full skill workflow, run it from within the repo.\n- The connected **Linear** MCP server needs authorization (via your claude.ai connector settings) before its tools are usable — not needed for this review, just flagging it.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 1169,
+    "model": "opus"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.16828400000000002,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 540,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.000605,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8": {
+        "inputTokens": 8,
+        "outputTokens": 1169,
+        "cacheReadInputTokens": 86368,
+        "cacheCreationInputTokens": 9523,
+        "webSearchRequests": 0,
+        "costUSD": 0.167679,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

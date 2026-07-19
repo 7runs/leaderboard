@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review: `diff-fp-bait-like.patch`\n\n### Summary\nThe diff modifies `search_articles` in `src/search.py` to filter articles by a user-supplied search term (`q`) using a SQL `LIKE` clause. **No exploitable security vulnerability was introduced.** The code follows safe parameterization practices.\n\n### Detailed Analysis\n\n**The code that looks suspicious but is actually safe:**\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAt first glance, `\"%\" + term + \"%\"` concatenates raw user input (`term = request.GET.get(\"q\", \"\")`) and might look like a SQL injection vector. **It is not.** Here's why:\n\n- The `%s` in the SQL string is a **DB-API parameter placeholder**, not Python string formatting. The query string itself is a fixed literal with no interpolation of user data.\n- The user-controlled value flows only through the `(pattern,)` parameter tuple, which the database driver binds/escapes separately from the SQL text. The `%` wildcards are added around the value *before* binding, which is the correct, idiomatic way to build a `LIKE` pattern.\n- Therefore the term cannot break out of the string literal or alter query structure — **no SQL injection.**\n\n### Verdict: No vulnerability (false-positive bait)\nThis change is a **security improvement** over the previous version, which ignored the search term entirely and returned all recent articles.\n\n### Minor / Informational Observations (not blocking)\nThese are hardening notes, not findings against the diff:\n\n1. **LIKE wildcard injection (low severity, functional):** Because `term` is inserted directly into the `LIKE` pattern, a user can include `%` or `_` characters that act as wildcards. This is not a security flaw (no injection, no data outside the `articles.title` scope), but if precise matching is desired you may want to escape `%`, `_`, and the escape char, e.g. `term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")` with an `ESCAPE` clause.\n\n2. **No input length/rate limiting:** Very long or high-frequency `q` values could be used for minor resource abuse. Consider capping term length and applying rate limiting at the view/gateway layer — a defense-in-depth suggestion, not a defect.\n\n3. **Authorization context:** Ensure this endpoint's access-control expectations (authenticated vs. public) are enforced elsewhere; the diff doesn't change auth and none is visible here.\n\n### Recommendation\n**Approve.** The query is correctly parameterized and represents the recommended pattern for user-driven `LIKE` searches. The optional wildcard-escaping note can be addressed at your discretion based on desired matching semantics.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T23:57:30.551Z",
+  "durationMs": 31219,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the query uses a parameterized DB-API placeholder (`%s` bound via `(pattern,)`) and that user input only flows into the bound value, not the SQL text, so it explicitly concluded there is no SQL injection. It only noted the benign LIKE-wildcard behavior as a low-severity, non-security functional note (not a vulnerability) and recommended approval, matching the rubric's PASS criteria.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the query uses a parameterized DB-API placeholder (`%s` bound via `(pattern,)`) and that user input only flows into the bound value, not the SQL text, so it explicitly concluded there is no SQL injection. It only noted the benign LIKE-wildcard behavior as a low-severity, non-security functional note (not a vulnerability) and recommended approval, matching the rubric's PASS criteria."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the query uses proper parameterized binding (`%s` as DB-API placeholder with `(pattern,)` bound value), concluded there is no SQL injection, and explicitly labeled the LIKE-wildcard behavior as a benign, non-security \"informational observation\" rather than a vulnerability. This matches the rubric's requirement to not assert SQL injection or any other real security vulnerability.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the query uses proper parameterized binding (`%s` as DB-API placeholder with `(pattern,)` bound value), concluded there is no SQL injection, and explicitly labeled the LIKE-wildcard behavior as a benign, non-security \"informational observation\" rather than a vulnerability. This matches the rubric's requirement to not assert SQL injection or any other real security vulnerability."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review: `diff-fp-bait-like.patch`\n\n### Summary\nThe diff modifies `search_articles` in `src/search.py` to filter articles by a user-supplied search term (`q`) using a SQL `LIKE` clause. **No exploitable security vulnerability was introduced.** The code follows safe parameterization practices.\n\n### Detailed Analysis\n\n**The code that looks suspicious but is actually safe:**\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAt first glance, `\"%\" + term + \"%\"` concatenates raw user input (`term = request.GET.get(\"q\", \"\")`) and might look like a SQL injection vector. **It is not.** Here's why:\n\n- The `%s` in the SQL string is a **DB-API parameter placeholder**, not Python string formatting. The query string itself is a fixed literal with no interpolation of user data.\n- The user-controlled value flows only through the `(pattern,)` parameter tuple, which the database driver binds/escapes separately from the SQL text. The `%` wildcards are added around the value *before* binding, which is the correct, idiomatic way to build a `LIKE` pattern.\n- Therefore the term cannot break out of the string literal or alter query structure — **no SQL injection.**\n\n### Verdict: No vulnerability (false-positive bait)\nThis change is a **security improvement** over the previous version, which ignored the search term entirely and returned all recent articles.\n\n### Minor / Informational Observations (not blocking)\nThese are hardening notes, not findings against the diff:\n\n1. **LIKE wildcard injection (low severity, functional):** Because `term` is inserted directly into the `LIKE` pattern, a user can include `%` or `_` characters that act as wildcards. This is not a security flaw (no injection, no data outside the `articles.title` scope), but if precise matching is desired you may want to escape `%`, `_`, and the escape char, e.g. `term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")` with an `ESCAPE` clause.\n\n2. **No input length/rate limiting:** Very long or high-frequency `q` values could be used for minor resource abuse. Consider capping term length and applying rate limiting at the view/gateway layer — a defense-in-depth suggestion, not a defect.\n\n3. **Authorization context:** Ensure this endpoint's access-control expectations (authenticated vs. public) are enforced elsewhere; the diff doesn't change auth and none is visible here.\n\n### Recommendation\n**Approve.** The query is correctly parameterized and represents the recommended pattern for user-driven `LIKE` searches. The optional wildcard-escaping note can be addressed at your discretion based on desired matching semantics.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 1264,
+    "model": "inherit"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.037392999999999996,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-opus-4-8[1m]": {
+        "inputTokens": 4,
+        "outputTokens": 1264,
+        "cacheReadInputTokens": 10326,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.036782999999999996,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

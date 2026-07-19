@@ -1,0 +1,52 @@
+{
+  "caseId": "cmdi-shell-true",
+  "rep": 0,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-cmdi.patch"
+  ],
+  "output": "The diff is a clear command-injection regression: `src/net/ping.py` swaps a safe list-form `subprocess.run([\"ping\", \"-c\", \"1\", host], ...)` for a shell-invoking string-concatenation form (`subprocess.run(\"ping -c 1 \" + host, shell=True, ...)`), and `host` comes straight from an unauthenticated GET parameter. That lets an attacker inject `;`, `&&`, `|`, backticks, or `$()` to run arbitrary OS commands on the server. This is CWE-78 and should block the change — revert to the list form (no `shell=True`) or, if shell invocation is required, strictly validate `host` as a well-formed IP/hostname before use.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:38:48.052Z",
+  "durationMs": 28878,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff introduces an OS command injection vulnerability (CWE-78) by changing a safe list-form subprocess.run call to a shell=True string-concatenation call using an unvalidated 'host' value from a GET parameter, explicitly noting attackers could inject shell metacharacters to run arbitrary commands, and recommended reverting to the list form or validating input. This matches the rubric's required finding exactly.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff introduces an OS command injection vulnerability (CWE-78) by changing a safe list-form subprocess.run call to a shell=True string-concatenation call using an unvalidated 'host' value from a GET parameter, explicitly noting attackers could inject shell metacharacters to run arbitrary commands, and recommended reverting to the list form or validating input. This matches the rubric's required finding exactly."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff changes subprocess.run from a safe list-argument form to a string-concatenated command executed with shell=True, using a user-controlled 'host' parameter from an unauthenticated GET request, and explicitly named this as a CWE-78 OS command injection vulnerability with a clear exploitation path (shell metacharacters) and remediation advice. This directly matches the rubric's required finding.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff changes subprocess.run from a safe list-argument form to a string-concatenated command executed with shell=True, using a user-controlled 'host' parameter from an unauthenticated GET request, and explicitly named this as a CWE-78 OS command injection vulnerability with a clear exploitation path (shell metacharacters) and remediation advice. This directly matches the rubric's required finding."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nThe diff is a clear command-injection regression: `src/net/ping.py` swaps a safe list-form `subprocess.run([\"ping\", \"-c\", \"1\", host], ...)` for a shell-invoking string-concatenation form (`subprocess.run(\"ping -c 1 \" + host, shell=True, ...)`), and `host` comes straight from an unauthenticated GET parameter. That lets an attacker inject `;`, `&&`, `|`, backticks, or `$()` to run arbitrary OS commands on the server. This is CWE-78 and should block the change — revert to the list form (no `shell=True`) or, if shell invocation is required, strictly validate `host` as a well-formed IP/hostname before use.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-cmdi.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

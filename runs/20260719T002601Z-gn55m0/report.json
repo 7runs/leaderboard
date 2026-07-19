@@ -1,0 +1,122 @@
+{
+  "schema": "7runs-report/1",
+  "run": {
+    "id": "20260719T002601Z-gn55m0",
+    "suiteName": "leaderboard-w3-security-auditor-voltagent-sonnet",
+    "label": "wave3",
+    "createdAt": "2026-07-19T00:26:01.023Z",
+    "tool": {
+      "name": "7runs",
+      "version": "0.1.0"
+    },
+    "reps": 7,
+    "concurrency": 4,
+    "timeoutMs": 300000,
+    "filter": null,
+    "caseCount": 3,
+    "durationMs": 197109
+  },
+  "metrics": {
+    "overall": {
+      "executions": 21,
+      "passes": 21,
+      "passRate": 1,
+      "ci": {
+        "low": 0.8453561767357979,
+        "high": 0.9999999999999998
+      }
+    },
+    "flakiness": {
+      "flakyCases": 0,
+      "totalCases": 3,
+      "rate": 0
+    },
+    "latency": {
+      "p50": 34749,
+      "p95": 46771,
+      "max": 50864
+    },
+    "cost": {
+      "totalUsd": 0.7409040000000001,
+      "meanUsd": 0.035281142857142865,
+      "known": 21,
+      "unknown": 0
+    },
+    "totalAgentTimeMs": 769819,
+    "cases": [
+      {
+        "caseId": "obfuscated-cmdi",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 41671,
+          "p95": 50864,
+          "max": 50864
+        },
+        "cost": {
+          "totalUsd": 0.291969,
+          "meanUsd": 0.04170985714285714,
+          "known": 7,
+          "unknown": 0
+        }
+      },
+      {
+        "caseId": "fp-bait-parameterized-like",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 40672,
+          "p95": 45243,
+          "max": 45243
+        },
+        "cost": {
+          "totalUsd": 0.25538399999999994,
+          "meanUsd": 0.03648342857142856,
+          "known": 7,
+          "unknown": 0
+        }
+      },
+      {
+        "caseId": "multifile-xss",
+        "n": 7,
+        "passes": 7,
+        "passRate": 1,
+        "ci": {
+          "low": 0.6456611570247934,
+          "high": 1
+        },
+        "stability": "stable_pass",
+        "latency": {
+          "p50": 30796,
+          "p95": 34234,
+          "max": 34234
+        },
+        "cost": {
+          "totalUsd": 0.19355099999999997,
+          "meanUsd": 0.027650142857142852,
+          "known": 7,
+          "unknown": 0
+        }
+      }
+    ]
+  },
+  "judge": {
+    "rubricChecks": 21,
+    "disputed": 0,
+    "transports": [
+      "claude-agent"
+    ]
+  }
+}

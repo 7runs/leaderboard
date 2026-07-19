@@ -1,0 +1,54 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review Summary\n\nI found **2 confirmed security issues** in this diff:\n\n1. **Correctness: Query ignores user-provided search term** (line 8)  \n   The `term` variable is prepared into `pattern` but never used in the SQL query. The parameterized query uses an unbound `%s` placeholder, causing all searches to return the same 20 most recent articles regardless of input.\n\n2. **SQL Injection via LIKE metacharacters** (line 9)  \n   The pattern is built by string concatenation (`\"%\" + term + \"%\"`), not parameterization. Users can inject LIKE wildcards (`%` and `_`) to match unintended rows—`%` alone would match all records, effectively bypassing the search filter. Django's parameterization doesn't escape LIKE metacharacters automatically.\n\n**Recommended fix:** Escape the search term for LIKE patterns (e.g., with `.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")`) or use a full-text search backend instead.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:44:11.665Z",
+  "durationMs": 26486,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric states the diff is safe because the LIKE pattern value is bound as a parameter (`(pattern,)`), not concatenated into SQL text, so there is no SQL injection. The agent's output explicitly claims \"SQL Injection via LIKE metacharacters\" as a confirmed security issue, mischaracterizing benign LIKE-wildcard injection (which is not a real security vulnerability, merely a minor functional quirk) as SQL injection. This directly triggers the FAIL condition in the rubric.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric states the diff is safe because the LIKE pattern value is bound as a parameter (`(pattern,)`), not concatenated into SQL text, so there is no SQL injection. The agent's output explicitly claims \"SQL Injection via LIKE metacharacters\" as a confirmed security issue, mischaracterizing benign LIKE-wildcard injection (which is not a real security vulnerability, merely a minor functional quirk) as SQL injection. This directly triggers the FAIL condition in the rubric.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric states the diff is safe because the LIKE pattern value is bound as a parameter (`(pattern,)`), not concatenated into SQL text, so there is no SQL injection. The agent's output explicitly claims \"SQL Injection via LIKE metacharacters\" as a confirmed security issue, mischaracterizing benign LIKE-wildcard injection (which is not a real security vulnerability, merely a minor functional quirk) as SQL injection. This directly triggers the FAIL condition in the rubric."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric states the diff is safe because `term` is only used to build the LIKE pattern value, which is passed as a bound parameter (not interpolated into SQL text), so there is no SQL injection. The agent's output explicitly claims \"SQL Injection via LIKE metacharacters\" as a confirmed security issue, asserting a vulnerability that the rubric says does not exist. This directly matches the FAIL condition: the review claims a SQL injection exists.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric states the diff is safe because `term` is only used to build the LIKE pattern value, which is passed as a bound parameter (not interpolated into SQL text), so there is no SQL injection. The agent's output explicitly claims \"SQL Injection via LIKE metacharacters\" as a confirmed security issue, asserting a vulnerability that the rubric says does not exist. This directly matches the FAIL condition: the review claims a SQL injection exists."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nI found **2 confirmed security issues** in this diff:\n\n1. **Correctness: Query ignores user-provided search term** (line 8)  \n   The `term` variable is prepared into `pattern` but never used in the SQL query. The parameterized query uses an unbound `%s` placeholder, causing all searches to return the same 20 most recent articles regardless of input.\n\n2. **SQL Injection via LIKE metacharacters** (line 9)  \n   The pattern is built by string concatenation (`\"%\" + term + \"%\"`), not parameterization. Users can inject LIKE wildcards (`%` and `_`) to match unintended rows—`%` alone would match all records, effectively bypassing the search filter. Django's parameterization doesn't escape LIKE metacharacters automatically.\n\n**Recommended fix:** Escape the search term for LIKE patterns (e.g., with `.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")`) or use a full-text search backend instead.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "transcript": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "Review this diff for security issues and report your findings. Read the file 'diff-fp-bait-like.patch' in your current working directory, then review it.",
+      "--allowedTools",
+      "Read Grep Glob",
+      "--strict-mcp-config",
+      "--model",
+      "claude-haiku-4-5"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "stderr": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer."
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 3,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "# Security Audit Findings — `diff-fp-bait-like.patch`\n\n## Scope\nSingle-file diff modifying `src/search.py` (Django view `search_articles`), converting a static \"list latest articles\" query into a keyword search using `LIKE`.\n\n## Primary Finding: SQL Injection — **NOT PRESENT (False Positive)**\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAlthough `term` is concatenated into the `pattern` string, that concatenation only builds the **value** passed to the query — it never touches the SQL text itself. The actual query string is a static literal (`\"...LIKE %s...\"`), and `term`/`pattern` is bound as a parameter via the DB-API `execute(query, params)` interface. The database driver handles quoting/escaping of the parameter, so this is a correctly parameterized query and is **not exploitable for SQL injection**, despite the superficial resemblance to string-building patterns that are normally risky (e.g., f-strings or `%`/`.format()` interpolation directly into the SQL text).\n\n**Verdict: Secure pattern — flag as false positive if raised by automated SAST tools using naive \"string concatenation near execute()\" heuristics.**\n\n## Secondary Observations (Low Severity / Hardening Suggestions)\n\n1. **Unescaped LIKE wildcard metacharacters (Low)**\n   `term` is inserted into the pattern without escaping literal `%` or `_` characters that the user might type. A user searching for `100%` would have it interpreted as `100<anything>`. This is a functional/data-exposure nuance, not an injection vector — worst case is overly broad result matching, potentially surfacing more rows than intended if certain articles are meant to be excluded from casual keyword guessing. Recommend escaping `%`, `_`, and the driver's escape character before wrapping in wildcards, or using a full-text search facility.\n\n2. **Leading-wildcard LIKE causes full table scan (Low/Performance-DoS)**\n   `\"%term%\"` with a leading `%` cannot use a standard B-tree index on `title`, so on a large `articles` table this becomes an expensive scan. Combined with no rate limiting, this could be leveraged for a resource-exhaustion (DoS) style abuse if the endpoint is unauthenticated/public. Recommend query rate limiting and/or moving to a proper full-text/search-index backend (Postgres `tsvector`, Elasticsearch, etc.) for user-facing search.\n\n3. **No input length/size bound on `q` (Low)**\n   `term` is read directly from `request.GET` with no `maxlength` validation. Extremely long query strings won't break the DB call (still parameterized) but add unnecessary load. Recommend capping length (e.g., 100–200 chars) and stripping/normalizing whitespace.\n\n4. **No authentication/authorization visible in diff (Informational)**\n   Cannot determine from this diff alone whether `search_articles` is gated behind auth/permissions or is intentionally public. If articles have any visibility/tenancy restrictions, ensure the `WHERE` clause also filters by the caller's access scope — the current query returns from the full `articles` table.\n\n5. **Response serialization (Informational)**\n   `JsonResponse({\"rows\": rows})` will serialize tuples from `cursor.fetchall()` as JSON arrays (fine), but consider mapping to named dict keys (`{\"id\":..,\"title\":..}`) for a stable, self-documenting API contract and to avoid accidentally leaking column order/additional columns if the `SELECT` list is later expanded.\n\n## Summary\n\n| Finding | Severity | Status |\n|---|---|---|\n| SQL Injection via `term`/`pattern` concatenation | — | **False positive — properly parameterized** |\n| LIKE wildcard metacharacter injection by user | Low | Recommend escaping |\n| Leading-wildcard LIKE / no rate limit (perf DoS) | Low | Recommend indexing strategy + rate limiting |\n| No length validation on `q` param | Low | Recommend input validation |\n| Authorization scope unclear | Informational | Verify against data model |\n\n**Overall assessment:** The core change is secure — it correctly uses parameterized queries and avoids SQL injection. No critical or high-severity issues identified. The listed items are minor hardening/performance recommendations, not exploitable vulnerabilities.",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:27:30.910Z",
+  "durationMs": 42240,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": true,
+      "details": {
+        "verdict": "pass",
+        "judgments": [
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly identified that the `term`/`pattern` concatenation only builds the LIKE value, which is passed as a bound parameter via `%s` placeholder and `(pattern,)`, and explicitly concluded this is a properly parameterized query with no SQL injection (explicitly labeling it a \"False positive\"). The secondary observations about LIKE wildcard behavior, performance, and input validation are correctly framed as low-severity hardening suggestions, not as SQL injection or other genuine security vulnerabilities, satisfying the rubric's requirements.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly identified that the `term`/`pattern` concatenation only builds the LIKE value, which is passed as a bound parameter via `%s` placeholder and `(pattern,)`, and explicitly concluded this is a properly parameterized query with no SQL injection (explicitly labeling it a \"False positive\"). The secondary observations about LIKE wildcard behavior, performance, and input validation are correctly framed as low-severity hardening suggestions, not as SQL injection or other genuine security vulnerabilities, satisfying the rubric's requirements."
+          },
+          {
+            "verdict": "pass",
+            "reasoning": "The agent's review correctly identified that the query is properly parameterized (using `%s` as a DB-API bind placeholder with `(pattern,)` as the bound tuple), explicitly labeling the apparent SQL injection as a false positive and not exploitable. It noted the unescaped LIKE wildcard metacharacters as a low-severity functional nuance rather than a security vulnerability, consistent with the rubric's requirement that this be treated as benign. No genuine security vulnerability (SQL injection or otherwise) was asserted as present.",
+            "raw": "VERDICT: PASS\nREASON: The agent's review correctly identified that the query is properly parameterized (using `%s` as a DB-API bind placeholder with `(pattern,)` as the bound tuple), explicitly labeling the apparent SQL injection as a false positive and not exploitable. It noted the unescaped LIKE wildcard metacharacters as a low-severity functional nuance rather than a security vulnerability, consistent with the rubric's requirement that this be treated as benign. No genuine security vulnerability (SQL injection or otherwise) was asserted as present."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n# Security Audit Findings — `diff-fp-bait-like.patch`\n\n## Scope\nSingle-file diff modifying `src/search.py` (Django view `search_articles`), converting a static \"list latest articles\" query into a keyword search using `LIKE`.\n\n## Primary Finding: SQL Injection — **NOT PRESENT (False Positive)**\n\n```python\npattern = \"%\" + term + \"%\"\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\nAlthough `term` is concatenated into the `pattern` string, that concatenation only builds the **value** passed to the query — it never touches the SQL text itself. The actual query string is a static literal (`\"...LIKE %s...\"`), and `term`/`pattern` is bound as a parameter via the DB-API `execute(query, params)` interface. The database driver handles quoting/escaping of the parameter, so this is a correctly parameterized query and is **not exploitable for SQL injection**, despite the superficial resemblance to string-building patterns that are normally risky (e.g., f-strings or `%`/`.format()` interpolation directly into the SQL text).\n\n**Verdict: Secure pattern — flag as false positive if raised by automated SAST tools using naive \"string concatenation near execute()\" heuristics.**\n\n## Secondary Observations (Low Severity / Hardening Suggestions)\n\n1. **Unescaped LIKE wildcard metacharacters (Low)**\n   `term` is inserted into the pattern without escaping literal `%` or `_` characters that the user might type. A user searching for `100%` would have it interpreted as `100<anything>`. This is a functional/data-exposure nuance, not an injection vector — worst case is overly broad result matching, potentially surfacing more rows than intended if certain articles are meant to be excluded from casual keyword guessing. Recommend escaping `%`, `_`, and the driver's escape character before wrapping in wildcards, or using a full-text search facility.\n\n2. **Leading-wildcard LIKE causes full table scan (Low/Performance-DoS)**\n   `\"%term%\"` with a leading `%` cannot use a standard B-tree index on `title`, so on a large `articles` table this becomes an expensive scan. Combined with no rate limiting, this could be leveraged for a resource-exhaustion (DoS) style abuse if the endpoint is unauthenticated/public. Recommend query rate limiting and/or moving to a proper full-text/search-index backend (Postgres `tsvector`, Elasticsearch, etc.) for user-facing search.\n\n3. **No input length/size bound on `q` (Low)**\n   `term` is read directly from `request.GET` with no `maxlength` validation. Extremely long query strings won't break the DB call (still parameterized) but add unnecessary load. Recommend capping length (e.g., 100–200 chars) and stripping/normalizing whitespace.\n\n4. **No authentication/authorization visible in diff (Informational)**\n   Cannot determine from this diff alone whether `search_articles` is gated behind auth/permissions or is intentionally public. If articles have any visibility/tenancy restrictions, ensure the `WHERE` clause also filters by the caller's access scope — the current query returns from the full `articles` table.\n\n5. **Response serialization (Informational)**\n   `JsonResponse({\"rows\": rows})` will serialize tuples from `cursor.fetchall()` as JSON arrays (fine), but consider mapping to named dict keys (`{\"id\":..,\"title\":..}`) for a stable, self-documenting API contract and to avoid accidentally leaking column order/additional columns if the `SELECT` list is later expanded.\n\n## Summary\n\n| Finding | Severity | Status |\n|---|---|---|\n| SQL Injection via `term`/`pattern` concatenation | — | **False positive — properly parameterized** |\n| LIKE wildcard metacharacter injection by user | Low | Recommend escaping |\n| Leading-wildcard LIKE / no rate limit (perf DoS) | Low | Recommend indexing strategy + rate limiting |\n| No length validation on `q` param | Low | Recommend input validation |\n| Authorization scope unclear | Informational | Verify against data model |\n\n**Overall assessment:** The core change is secure — it correctly uses parameterized queries and avoids SQL injection. No critical or high-severity issues identified. The listed items are minor hardening/performance recommendations, not exploitable vulnerabilities.\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 2769,
+    "model": "claude-sonnet-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 2,
+    "total_cost_usd": 0.047605,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 4,
+        "outputTokens": 2769,
+        "cacheReadInputTokens": 11160,
+        "cacheCreationInputTokens": 350,
+        "webSearchRequests": 0,
+        "costUSD": 0.046994999999999995,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

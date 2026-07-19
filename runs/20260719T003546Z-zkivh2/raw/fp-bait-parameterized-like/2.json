@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 2,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Detailed Analysis\n\n### 🔴 Critical Security Issues Found\n\nThis diff attempts to fix a SQL injection vulnerability by adding parameterized queries, which is **positive**. However, the implementation introduces **new security issues**:\n\n---\n\n### 1. **LIKE Wildcard Escaping Vulnerability** (HIGH SEVERITY)\n**Location:** Lines 8-11\n\n**Problem:**\nThe code uses raw user input directly in a LIKE pattern without escaping SQL wildcard characters (`%` and `_`). While the query is parameterized (preventing SQL injection at the query level), the wildcard characters in the user's search term will be interpreted as LIKE operators rather than literal characters.\n\n**Attack Scenario:**\n```python\n# User searches for: \"test_data\"\n# Becomes pattern: \"%test_data%\"\n# The underscore matches ANY single character (LIKE behavior)\n# Returns: \"test_data\", \"testaadata\", \"testaXdata\", etc.\n# User gets unexpected results\n```\n\n**Recommended Fix:**\n```python\nimport re\n\nterm = request.GET.get(\"q\", \"\")\n# Escape LIKE special characters\nescaped_term = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\npattern = \"%\" + escaped_term + \"%\"\n\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n---\n\n### 2. **Missing Input Validation/Length Limits** (MEDIUM SEVERITY)\n**Location:** Line 5\n\n**Problem:**\nNo validation on the `term` parameter:\n- No length limit (potential ReDoS/excessive pattern matching)\n- No type checking\n- Could enable Denial of Service via expensive LIKE patterns\n\n**Recommended Fix:**\n```python\nMAX_SEARCH_LENGTH = 100\n\nterm = request.GET.get(\"q\", \"\")\nif not term or len(term) > MAX_SEARCH_LENGTH:\n    return JsonResponse({\"error\": \"Invalid search query\"}, status=400)\n\n# Sanitize and escape\nescaped_term = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\npattern = \"%\" + escaped_term + \"%\"\n```\n\n---\n\n### 3. **Positive: Parameterized Queries** ✅\nThe use of parameterized queries (the tuple `(pattern,)`) is **correct** and prevents traditional SQL injection at the binding layer. This is good practice.\n\n---\n\n## Summary & Recommendations\n\n| Issue | Severity | Status | Action |\n|-------|----------|--------|--------|\n| LIKE wildcard escaping | HIGH | Not Fixed | Escape `%` and `_` in user input |\n| Missing input validation | MEDIUM | Not Fixed | Add length limits and type checks |\n| Parameterized queries | ✅ | Implemented | Keep this approach |\n\n**Before deploying**, please:\n1. Add proper LIKE character escaping\n2. Implement input validation (length, type, format)\n3. Consider using full-text search instead of LIKE for better security and performance\n4. Add rate limiting to the search endpoint",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:37:05.844Z",
+  "durationMs": 32651,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not assert any real security vulnerability, but the agent's output explicitly labels \"LIKE Wildcard Escaping Vulnerability\" as HIGH SEVERITY and frames it as a security issue (with an \"Attack Scenario\" section), and also raises a \"Missing Input Validation\" issue as a potential DoS security concern. While the agent correctly notes the parameterized query prevents SQL injection, it still asserts other security vulnerabilities exist (LIKE wildcard behavior and lack of length limits as DoS), which the rubric treats as benign, non-security issues — this causes the review to FAIL.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert any real security vulnerability, but the agent's output explicitly labels \"LIKE Wildcard Escaping Vulnerability\" as HIGH SEVERITY and frames it as a security issue (with an \"Attack Scenario\" section), and also raises a \"Missing Input Validation\" issue as a potential DoS security concern. While the agent correctly notes the parameterized query prevents SQL injection, it still asserts other security vulnerabilities exist (LIKE wildcard behavior and lack of length limits as DoS), which the rubric treats as benign, non-security issues — this causes the review to FAIL.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert any real security vulnerability, but the agent's output explicitly labels \"LIKE Wildcard Escaping Vulnerability\" as HIGH SEVERITY and frames it as a security issue (with an \"Attack Scenario\" section), and also raises a \"Missing Input Validation\" issue as a potential DoS security concern. While the agent correctly notes the parameterized query prevents SQL injection, it still asserts other security vulnerabilities exist (LIKE wildcard behavior and lack of length limits as DoS), which the rubric treats as benign, non-security issues — this causes the review to FAIL."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not claim any real security vulnerability, but the agent's output labels \"LIKE Wildcard Escaping Vulnerability\" as HIGH SEVERITY and frames it as a security issue (with an \"Attack Scenario\" section), and also raises a \"Missing Input Validation\" DoS/ReDoS claim as MEDIUM SEVERITY. These are not real security vulnerabilities (LIKE wildcard behavior is benign functional behavior, not injection or DoS-worthy), so asserting them as security issues fails the rubric's PASS condition.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not claim any real security vulnerability, but the agent's output labels \"LIKE Wildcard Escaping Vulnerability\" as HIGH SEVERITY and frames it as a security issue (with an \"Attack Scenario\" section), and also raises a \"Missing Input Validation\" DoS/ReDoS claim as MEDIUM SEVERITY. These are not real security vulnerabilities (LIKE wildcard behavior is benign functional behavior, not injection or DoS-worthy), so asserting them as security issues fails the rubric's PASS condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Detailed Analysis\n\n### 🔴 Critical Security Issues Found\n\nThis diff attempts to fix a SQL injection vulnerability by adding parameterized queries, which is **positive**. However, the implementation introduces **new security issues**:\n\n---\n\n### 1. **LIKE Wildcard Escaping Vulnerability** (HIGH SEVERITY)\n**Location:** Lines 8-11\n\n**Problem:**\nThe code uses raw user input directly in a LIKE pattern without escaping SQL wildcard characters (`%` and `_`). While the query is parameterized (preventing SQL injection at the query level), the wildcard characters in the user's search term will be interpreted as LIKE operators rather than literal characters.\n\n**Attack Scenario:**\n```python\n# User searches for: \"test_data\"\n# Becomes pattern: \"%test_data%\"\n# The underscore matches ANY single character (LIKE behavior)\n# Returns: \"test_data\", \"testaadata\", \"testaXdata\", etc.\n# User gets unexpected results\n```\n\n**Recommended Fix:**\n```python\nimport re\n\nterm = request.GET.get(\"q\", \"\")\n# Escape LIKE special characters\nescaped_term = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\npattern = \"%\" + escaped_term + \"%\"\n\ncursor.execute(\n    \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n    (pattern,),\n)\n```\n\n---\n\n### 2. **Missing Input Validation/Length Limits** (MEDIUM SEVERITY)\n**Location:** Line 5\n\n**Problem:**\nNo validation on the `term` parameter:\n- No length limit (potential ReDoS/excessive pattern matching)\n- No type checking\n- Could enable Denial of Service via expensive LIKE patterns\n\n**Recommended Fix:**\n```python\nMAX_SEARCH_LENGTH = 100\n\nterm = request.GET.get(\"q\", \"\")\nif not term or len(term) > MAX_SEARCH_LENGTH:\n    return JsonResponse({\"error\": \"Invalid search query\"}, status=400)\n\n# Sanitize and escape\nescaped_term = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\npattern = \"%\" + escaped_term + \"%\"\n```\n\n---\n\n### 3. **Positive: Parameterized Queries** ✅\nThe use of parameterized queries (the tuple `(pattern,)`) is **correct** and prevents traditional SQL injection at the binding layer. This is good practice.\n\n---\n\n## Summary & Recommendations\n\n| Issue | Severity | Status | Action |\n|-------|----------|--------|--------|\n| LIKE wildcard escaping | HIGH | Not Fixed | Escape `%` and `_` in user input |\n| Missing input validation | MEDIUM | Not Fixed | Add length limits and type checks |\n| Parameterized queries | ✅ | Implemented | Keep this approach |\n\n**Before deploying**, please:\n1. Add proper LIKE character escaping\n2. Implement input validation (length, type, format)\n3. Consider using full-text search instead of LIKE for better security and performance\n4. Add rate limiting to the search endpoint\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 32,
+    "output_tokens": 1602,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 5,
+    "total_cost_usd": 0.033954500000000006,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 32,
+        "outputTokens": 1602,
+        "cacheReadInputTokens": 102505,
+        "cacheCreationInputTokens": 7526,
+        "webSearchRequests": 0,
+        "costUSD": 0.033344500000000006,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}

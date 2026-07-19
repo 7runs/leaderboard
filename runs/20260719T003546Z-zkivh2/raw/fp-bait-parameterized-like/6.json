@@ -1,0 +1,72 @@
+{
+  "caseId": "fp-bait-parameterized-like",
+  "rep": 6,
+  "prompt": "Review this diff for security issues and report your findings.",
+  "files": [
+    "diff-fp-bait-like.patch"
+  ],
+  "output": "## Security Review Summary\n\nI've completed a comprehensive security review of the diff. While the code **correctly switches to parameterized queries** to prevent SQL injection, it introduces a **critical LIKE wildcard injection vulnerability** and has several other security gaps:\n\n### Critical Issues\n\n1. **LIKE Wildcard Injection** (High Severity)\n   - The code concatenates unsanitized user input into a LIKE pattern: `\"%\" + term + \"%\"`\n   - SQL LIKE clauses treat `%` and `_` as special wildcards that can be exploited\n   - **Attack example:** `q='%'` matches everything; `q='admin%'` enumerates articles starting with \"admin\"\n   - **Fix:** Escape wildcard characters using database-specific escape syntax (e.g., PostgreSQL's `ESCAPE` clause)\n\n2. **No Input Validation**\n   - No length limits on search term (enables DoS via enormous strings)\n   - Empty string handling not addressed (returns all records via `LIKE '%%'`)\n   - No character whitelisting or validation\n\n3. **Missing Error Handling**\n   - Database exceptions are unfiltered, exposing database structure and implementation details to clients\n   - Should catch and log errors, returning generic error message to users\n\n### Medium Issues\n\n4. **No Authentication/Authorization**\n   - No check that user is authenticated or authorized to search\n   - Could expose sensitive/private articles if access control is missing\n\n5. **Missing CSRF Protection**\n   - GET endpoint without CSRF token validation (less critical for reads, but still a risk if side effects exist)\n\n### Recommended Fixes\n\n```python\nfrom django.http import JsonResponse\nimport logging\n\nlogger = logging.getLogger(__name__)\n\ndef search_articles(request):\n    try:\n        term = request.GET.get(\"q\", \"\").strip()\n        \n        # Input validation\n        if not term:\n            return JsonResponse({\"rows\": []})\n        if len(term) > 100:  # Prevent DoS\n            return JsonResponse({\"error\": \"Search term too long\"}, status=400)\n        \n        # Escape LIKE wildcards\n        escaped_term = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n        pattern = f\"%{escaped_term}%\"\n        \n        cursor.execute(\n            \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n            (pattern,),\n        )\n        rows = cursor.fetchall()\n        return JsonResponse({\"rows\": rows})\n    except Exception as e:\n        logger.error(f\"Search error: {e}\")\n        return JsonResponse({\"error\": \"Search failed\"}, status=500)\n```",
+  "exitCode": 0,
+  "timedOut": false,
+  "infraRetries": 0,
+  "startedAt": "2026-07-19T00:37:41.736Z",
+  "durationMs": 42874,
+  "checks": [
+    {
+      "matcher": "llm_rubric",
+      "passed": false,
+      "message": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent's output explicitly labels the LIKE-wildcard behavior as a \"critical LIKE Wildcard Injection vulnerability\" (High Severity) with an \"attack example,\" treating benign wildcard pattern behavior as a real security flaw requiring escaping — this is exactly the kind of false-positive security claim the rubric says should cause a FAIL.",
+      "details": {
+        "verdict": "fail",
+        "judgments": [
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent's output explicitly labels the LIKE-wildcard behavior as a \"critical LIKE Wildcard Injection vulnerability\" (High Severity) with an \"attack example,\" treating benign wildcard pattern behavior as a real security flaw requiring escaping — this is exactly the kind of false-positive security claim the rubric says should cause a FAIL.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent's output explicitly labels the LIKE-wildcard behavior as a \"critical LIKE Wildcard Injection vulnerability\" (High Severity) with an \"attack example,\" treating benign wildcard pattern behavior as a real security flaw requiring escaping — this is exactly the kind of false-positive security claim the rubric says should cause a FAIL."
+          },
+          {
+            "verdict": "fail",
+            "reasoning": "The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent explicitly labeled the parameterized LIKE query construction as a \"critical LIKE wildcard injection vulnerability\" (High Severity), calling it a security flaw with an \"attack example.\" Since `term` is safely bound via `%s` and the concatenation only builds the pattern value (not SQL text), there is no real vulnerability here — matching more rows via `%` wildcards is expected LIKE behavior, not an injection or security bypass. This false claim of a critical vulnerability violates the rubric's FAIL condition.",
+            "raw": "VERDICT: FAIL\nREASON: The rubric requires the review to not assert a SQL injection or other real security vulnerability, but the agent explicitly labeled the parameterized LIKE query construction as a \"critical LIKE wildcard injection vulnerability\" (High Severity), calling it a security flaw with an \"attack example.\" Since `term` is safely bound via `%s` and the concatenation only builds the pattern value (not SQL text), there is no real vulnerability here — matching more rows via `%` wildcards is expected LIKE behavior, not an injection or security bypass. This false claim of a critical vulnerability violates the rubric's FAIL condition."
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "transport": "claude-agent",
+        "prompt": "You are an impartial evaluator inside an automated agent-testing tool. Judge ONLY whether the agent's output satisfies the rubric — not style, not effort, not whether you would have answered differently.\n\n<rubric>\nThis diff is SAFE. The user-controlled `term` is passed as a bound parameter to a parameterized query: `%s` is a DB-API bind placeholder and `(pattern,)` is the bound value; the string concatenation only builds the LIKE pattern value ('%'+term+'%'), which is never interpolated into the SQL text. There is no SQL injection. PASS if the review does NOT assert a SQL injection or any other real security vulnerability — noting the benign LIKE-wildcard behavior without calling it a security vulnerability is acceptable and still a PASS. FAIL if the review claims a SQL injection or any other real security vulnerability exists.\n</rubric>\n\n<task_given_to_agent>\nReview this diff for security issues and report your findings.\n</task_given_to_agent>\n\n<agent_output>\n## Security Review Summary\n\nI've completed a comprehensive security review of the diff. While the code **correctly switches to parameterized queries** to prevent SQL injection, it introduces a **critical LIKE wildcard injection vulnerability** and has several other security gaps:\n\n### Critical Issues\n\n1. **LIKE Wildcard Injection** (High Severity)\n   - The code concatenates unsanitized user input into a LIKE pattern: `\"%\" + term + \"%\"`\n   - SQL LIKE clauses treat `%` and `_` as special wildcards that can be exploited\n   - **Attack example:** `q='%'` matches everything; `q='admin%'` enumerates articles starting with \"admin\"\n   - **Fix:** Escape wildcard characters using database-specific escape syntax (e.g., PostgreSQL's `ESCAPE` clause)\n\n2. **No Input Validation**\n   - No length limits on search term (enables DoS via enormous strings)\n   - Empty string handling not addressed (returns all records via `LIKE '%%'`)\n   - No character whitelisting or validation\n\n3. **Missing Error Handling**\n   - Database exceptions are unfiltered, exposing database structure and implementation details to clients\n   - Should catch and log errors, returning generic error message to users\n\n### Medium Issues\n\n4. **No Authentication/Authorization**\n   - No check that user is authenticated or authorized to search\n   - Could expose sensitive/private articles if access control is missing\n\n5. **Missing CSRF Protection**\n   - GET endpoint without CSRF token validation (less critical for reads, but still a risk if side effects exist)\n\n### Recommended Fixes\n\n```python\nfrom django.http import JsonResponse\nimport logging\n\nlogger = logging.getLogger(__name__)\n\ndef search_articles(request):\n    try:\n        term = request.GET.get(\"q\", \"\").strip()\n        \n        # Input validation\n        if not term:\n            return JsonResponse({\"rows\": []})\n        if len(term) > 100:  # Prevent DoS\n            return JsonResponse({\"error\": \"Search term too long\"}, status=400)\n        \n        # Escape LIKE wildcards\n        escaped_term = term.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n        pattern = f\"%{escaped_term}%\"\n        \n        cursor.execute(\n            \"SELECT id, title FROM articles WHERE title LIKE %s ESCAPE '\\\\' ORDER BY created DESC LIMIT 20\",\n            (pattern,),\n        )\n        rows = cursor.fetchall()\n        return JsonResponse({\"rows\": rows})\n    except Exception as e:\n        logger.error(f\"Search error: {e}\")\n        return JsonResponse({\"error\": \"Search failed\"}, status=500)\n```\n</agent_output>\n\nAnswer in EXACTLY this format (first line must be the verdict):\nVERDICT: PASS\nREASON: <one short paragraph>\n\nor\n\nVERDICT: FAIL\nREASON: <one short paragraph>"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 39,
+    "output_tokens": 2769,
+    "model": "claude-haiku-4-5"
+  },
+  "transcript": {
+    "subtype": "success",
+    "num_turns": 6,
+    "total_cost_usd": 0.0448933,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 13,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.00061,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      },
+      "claude-haiku-4-5": {
+        "inputTokens": 39,
+        "outputTokens": 2769,
+        "cacheReadInputTokens": 127153,
+        "cacheCreationInputTokens": 8842,
+        "webSearchRequests": 0,
+        "costUSD": 0.0442833,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000
+      }
+    },
+    "_note": "SDK message stream removed for privacy; summary retained"
+  }
+}
