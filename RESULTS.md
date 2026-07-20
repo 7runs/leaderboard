@@ -176,6 +176,8 @@ Wave 2 (Read/Grep/Glob, no skills/MCP).
 
 ### Cost-vs-reliability curve (mean $/execution × pass rate)
 
+*modeled API-equivalent · never billed (subscription auth)*
+
 | Agent | Opus | Sonnet-5 | Haiku-4-5 |
 |---|---|---|---|
 | security-auditor (wshobson) | 100% · $0.0343 | **95%** · $0.0202 | **76%** · $0.0100 |
