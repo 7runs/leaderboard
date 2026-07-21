@@ -1,7 +1,3 @@
-> **Publication in progress** — the maintainers of the agents under test have been
-> notified with their results and have a **one-week response window** before these
-> numbers are finalized. Corrections/responses will be incorporated.
-
 # 7runs flakiness leaderboard — Phase 1-A
 
 A reproducible, **whole-system flakiness** benchmark for AI code-review agents. Every
@@ -53,6 +49,8 @@ with no skills and no MCP** — deliberately *not* "out-of-the-box Claude Code" 
 - **Metrics:** overall pass rate with **Wilson 95% CI**, flakiness, `disputed`.
 
 ## Results
+
+**Full report: [7runs.dev/leaderboard](https://7runs.dev/leaderboard)**
 
 **[RESULTS.md](./RESULTS.md)** — the three-wave writeup with the headline finding:
 the model axis discriminates where case difficulty did not (Opus 100% → Sonnet
