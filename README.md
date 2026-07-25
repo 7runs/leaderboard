@@ -5,9 +5,13 @@ number here is **harness + prompt + model as one system** — not a model-vs-mod
 claim. Two agents that share an underlying model can still differ in reliability
 because their prompts and scaffolding differ; that difference is what this measures.
 
-Built with **7runs**, a CLI for testing and evaluating AI agents (golden suites,
-N-rep runs, Wilson-CI reliability reports, regression detection). The CLI lives at
-**[7runs.dev](https://7runs.dev)**; the product repository opens at launch.
+Built with **7runs**, an engine for testing and evaluating AI agents (golden suites,
+N-rep runs, Wilson-CI reliability reports, regression detection). The methodology and
+all data in this repo are open; the engine itself is a commercial product — to see it
+run on your own agent, **[book a demo at 7runs.dev](https://7runs.dev/#book)**.
+(Earlier versions of this README said the product repository would open at launch;
+we've since chosen a closed-engine model — the suites, fixtures, raw run records, and
+judge transcripts here remain fully public so every number stays auditable.)
 
 ## The task (identical for every agent)
 
@@ -64,26 +68,21 @@ smaller models keep recall, lose precision).
   absolute local paths and the verbose SDK message stream are stripped; see
   [`runs/README.md`](./runs/README.md).)
 
-## Reproduce
+## Audit &amp; replay
 
-Requires the **7runs CLI** ([7runs.dev](https://7runs.dev)). From the repo root:
+Everything needed to audit these numbers without the engine is in this repo:
 
-```bash
-# Wave 2 (Opus, as authored):
-for s in security-auditor-wshobson code-reviewer-wshobson security-auditor-voltagent claude-code; do
-  env -u ANTHROPIC_API_KEY 7runs run "wave2/suite-$s.yaml" --label wave2
-done
-# Wave 3 (model axis):
-for s in security-auditor-wshobson code-reviewer-wshobson security-auditor-voltagent claude-code; do
-  for m in sonnet haiku; do
-    env -u ANTHROPIC_API_KEY 7runs run "wave3/suite-$s-$m.yaml" --label wave3
-  done
-done
-```
+- **Suites and fixtures** are byte-identical published YAML/patch files — you can run
+  every case against any agent with your own harness and compare.
+- **Raw run records** ([`runs/`](./runs/)) contain, per rep, the full agent output,
+  token usage, and **both judge transcripts** for every rubric check — each published
+  number can be recomputed from these records (Wilson CI over the recorded verdicts).
+- **Independent re-execution with the 7runs engine:** researchers and maintainers of
+  the agents under test can request a supervised reproduction run —
+  [book a session at 7runs.dev](https://7runs.dev/#book) or open an issue here.
 
-**`env -u ANTHROPIC_API_KEY`** matters: these runs use Claude **subscription** auth,
-and the key's presence would route billing to the key even on the SDK path — stripping
-it for the run's process tree forces subscription auth.
+Method note preserved for the record: the published runs used Claude **subscription**
+auth (`env -u ANTHROPIC_API_KEY` so billing could not silently route to an API key).
 
 ## Licensing
 
