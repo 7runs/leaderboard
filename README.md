@@ -5,13 +5,9 @@ number here is **harness + prompt + model as one system** — not a model-vs-mod
 claim. Two agents that share an underlying model can still differ in reliability
 because their prompts and scaffolding differ; that difference is what this measures.
 
-Built with **7runs**, an engine for testing and evaluating AI agents (golden suites,
-N-rep runs, Wilson-CI reliability reports, regression detection). The methodology and
-all data in this repo are open; the engine itself is a commercial product — to see it
-run on your own agent, **[book a demo at 7runs.dev](https://7runs.dev/#book)**.
-(Earlier versions of this README said the product repository would open at launch;
-we've since chosen a closed-engine model — the suites, fixtures, raw run records, and
-judge transcripts here remain fully public so every number stays auditable.)
+We used **7runs** to repeat each test and report pass rates, flaky cases and regressions. The [benchmark report](https://7runs.dev/leaderboard) summarizes the results. The suites, fixtures, raw runs and judge transcripts are available here.
+
+The first public source release of the engine is in preparation. Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [Ask about an organization license](mailto:hello@7runs.dev?subject=7runs%20organization%20license).
 
 ## The task (identical for every agent)
 
@@ -77,9 +73,8 @@ Everything needed to audit these numbers without the engine is in this repo:
 - **Raw run records** ([`runs/`](./runs/)) contain, per rep, the full agent output,
   token usage, and **both judge transcripts** for every rubric check — each published
   number can be recomputed from these records (Wilson CI over the recorded verdicts).
-- **Independent re-execution with the 7runs engine:** researchers and maintainers of
-  the agents under test can request a supervised reproduction run —
-  [book a session at 7runs.dev](https://7runs.dev/#book) or open an issue here.
+- **Supervised reproduction with the 7runs engine:** researchers and maintainers of
+  the agents under test can [request a session by email](mailto:hello@7runs.dev?subject=7runs%20benchmark%20reproduction) or open an issue here.
 
 Method note preserved for the record: the published runs used Claude **subscription**
 auth (`env -u ANTHROPIC_API_KEY` so billing could not silently route to an API key).
