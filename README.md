@@ -5,13 +5,19 @@ number here is **harness + prompt + model as one system** — not a model-vs-mod
 claim. Two agents that share an underlying model can still differ in reliability
 because their prompts and scaffolding differ; that difference is what this measures.
 
-Built with **7runs**, an engine for testing and evaluating AI agents (golden suites,
-N-rep runs, Wilson-CI reliability reports, regression detection). The methodology and
-all data in this repo are open; the engine itself is a commercial product — to see it
-run on your own agent, **[book a demo at 7runs.dev](https://7runs.dev/#book)**.
-(Earlier versions of this README said the product repository would open at launch;
-we've since chosen a closed-engine model — the suites, fixtures, raw run records, and
-judge transcripts here remain fully public so every number stays auditable.)
+We used **7runs** to repeat each test and report pass rates and flaky cases. The [benchmark report](https://7runs.dev/leaderboard) summarizes the results. The suites, fixtures, raw runs and judge transcripts are available here.
+
+## Test your own agent
+
+Install the CLI with Node.js 20 or later.
+
+```sh
+npm install --global @7runs/7runs@0.1.0
+```
+
+Follow the [public quickstart](https://github.com/7runs/.github/blob/main/profile/README.md) to run the starter suite and verify 14/14 passing executions. Then use the [command and HTTP examples](https://github.com/7runs/.github/tree/main/examples/generic-adapter) to connect your own agent, set the answer you expect, and generate HTML and JSON reports. To run the checks in your repository, copy the [GitHub Actions workflow](https://github.com/7runs/.github/blob/main/.github/workflows/7runs.yml).
+
+Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [Ask about an organization license](mailto:hello@7runs.dev?subject=7runs%20organization%20license).
 
 ## The task (identical for every agent)
 
@@ -19,7 +25,7 @@ judge transcripts here remain fully public so every number stays auditable.)
 byte-identical across all suites in a wave, so results are directly comparable.
 
 - **Wave 1** (`fixtures/`, `suite-*.yaml`) — 3 easy cases (SQLi, command injection,
-  clean README). All agents hit the ceiling → we escalated.
+  clean README). Three agents passed 21/21. Claude Code passed 20/21.
 - **Wave 2** (`wave2/`) — 3 *hard* cases: obfuscated command injection, a **safe**
   parameterized-`LIKE` query (false-positive bait), and a multi-file XSS. Still all
   100% at Opus.
@@ -33,13 +39,12 @@ byte-identical across all suites in a wave, so results are directly comparable.
 | `*-security-auditor-wshobson` | security-auditor | wshobson/agents | [PROVENANCE.md](./PROVENANCE.md) |
 | `*-code-reviewer-wshobson` | code-reviewer | wshobson/agents | [PROVENANCE.md](./PROVENANCE.md) |
 | `*-security-auditor-voltagent` | security-auditor | VoltAgent/awesome-claude-code-subagents | [PROVENANCE.md](./PROVENANCE.md) |
-| `*-claude-code` | Claude Code (`claude -p`) | — | restricted config (below) |
+| `*-claude-code` | Claude Code (`claude -p`) | — | [Wave-specific configuration](./RESULTS.md) |
 
 The three subagents run via the Claude Agent SDK with `settingSources: []` (isolated).
-The **Claude Code** entry runs headless `claude -p` **restricted to Read/Grep/Glob
-with no skills and no MCP** — deliberately *not* "out-of-the-box Claude Code" (a clean
-`CLAUDE_CONFIG_DIR` was infeasible; the isolation is done via a tool allowlist). See
-[RESULTS.md](./RESULTS.md).
+In Wave 1, **Claude Code** ran with the local configuration. For Waves 2 and 3,
+its read-only toolset was restricted to Read/Grep/Glob with skills and MCP disabled.
+[Configuration details](./RESULTS.md).
 
 ## Method
 
@@ -56,30 +61,18 @@ with no skills and no MCP** — deliberately *not* "out-of-the-box Claude Code" 
 
 **Full report: [7runs.dev/leaderboard](https://7runs.dev/leaderboard)**
 
-**[RESULTS.md](./RESULTS.md)** — the three-wave writeup with the headline finding:
-the model axis discriminates where case difficulty did not (Opus 100% → Sonnet
-95–100% → **Haiku 67–76%**, the collapse concentrated on the false-positive bait —
-smaller models keep recall, lose precision).
+On the three hard cases, each agent passed 21/21 reviews on Opus. On Haiku the
+four agents passed all 56 reviews of the two vulnerable diffs, but only 4 of the
+28 reviews of the safe SQL query. [Read the three-wave results](./RESULTS.md).
 
-- Machine-readable data + tables: [`publication/`](./publication/)
-  (`data.json`, `TABLE.md`, `haiku-fp-bait-histograms.md`).
-- **Raw run records for replay:** [`runs/`](./runs/) — per rep, the agent output,
-  token usage, and **both judge transcripts** for every rubric check. (For privacy,
-  absolute local paths and the verbose SDK message stream are stripped; see
-  [`runs/README.md`](./runs/README.md).)
+## Verify a score
 
-## Audit &amp; replay
-
-Everything needed to audit these numbers without the engine is in this repo:
-
-- **Suites and fixtures** are byte-identical published YAML/patch files — you can run
-  every case against any agent with your own harness and compare.
-- **Raw run records** ([`runs/`](./runs/)) contain, per rep, the full agent output,
-  token usage, and **both judge transcripts** for every rubric check — each published
-  number can be recomputed from these records (Wilson CI over the recorded verdicts).
-- **Independent re-execution with the 7runs engine:** researchers and maintainers of
-  the agents under test can request a supervised reproduction run —
-  [book a session at 7runs.dev](https://7runs.dev/#book) or open an issue here.
+The [publication tables](./publication/) list per-case scores, confidence intervals
+and run IDs. Select an entry in the [run index](./runs/README.md), then open
+`results.jsonl` in that run’s folder. Each line contains one repetition and its
+pass verdict. The corresponding `raw/<case>/<rep>.json` contains the agent
+output and both judge transcripts. Each suite and its fixture diffs are included
+in this repository.
 
 Method note preserved for the record: the published runs used Claude **subscription**
 auth (`env -u ANTHROPIC_API_KEY` so billing could not silently route to an API key).
