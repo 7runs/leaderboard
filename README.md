@@ -5,15 +5,17 @@ number here is **harness + prompt + model as one system** — not a model-vs-mod
 claim. Two agents that share an underlying model can still differ in reliability
 because their prompts and scaffolding differ; that difference is what this measures.
 
-We used **7runs** to repeat each test and report pass rates, flaky cases and regressions. The [benchmark report](https://7runs.dev/leaderboard) summarizes the results. The suites, fixtures, raw runs and judge transcripts are available here.
+We used **7runs** to repeat each test and report pass rates and flaky cases. The [benchmark report](https://7runs.dev/leaderboard) summarizes the results. The suites, fixtures, raw runs and judge transcripts are available here.
 
-To try the engine locally, install the CLI with Node.js 20 or later.
+## Test your own agent
+
+Install the CLI with Node.js 20 or later.
 
 ```sh
 npm install --global @7runs/7runs@0.1.0
 ```
 
-The [local quickstart](https://7runs.dev/#local) runs two starter cases seven times each and produces HTML and JSON reports. The benchmark suites and their recorded results are documented below.
+Follow the [public quickstart](https://github.com/7runs/.github/blob/main/profile/README.md) to run the starter suite and verify 14/14 passing executions. Then use the [command and HTTP examples](https://github.com/7runs/.github/tree/main/examples/generic-adapter) to connect your own agent, set the answer you expect, and generate HTML and JSON reports. To run the checks in your repository, copy the [GitHub Actions workflow](https://github.com/7runs/.github/blob/main/.github/workflows/7runs.yml).
 
 Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [Ask about an organization license](mailto:hello@7runs.dev?subject=7runs%20organization%20license).
 
@@ -37,13 +39,12 @@ byte-identical across all suites in a wave, so results are directly comparable.
 | `*-security-auditor-wshobson` | security-auditor | wshobson/agents | [PROVENANCE.md](./PROVENANCE.md) |
 | `*-code-reviewer-wshobson` | code-reviewer | wshobson/agents | [PROVENANCE.md](./PROVENANCE.md) |
 | `*-security-auditor-voltagent` | security-auditor | VoltAgent/awesome-claude-code-subagents | [PROVENANCE.md](./PROVENANCE.md) |
-| `*-claude-code` | Claude Code (`claude -p`) | — | restricted config (below) |
+| `*-claude-code` | Claude Code (`claude -p`) | — | [Wave-specific configuration](./RESULTS.md) |
 
 The three subagents run via the Claude Agent SDK with `settingSources: []` (isolated).
-The **Claude Code** entry runs headless `claude -p` **restricted to Read/Grep/Glob
-with no skills and no MCP** — deliberately *not* "out-of-the-box Claude Code" (a clean
-`CLAUDE_CONFIG_DIR` was infeasible; the isolation is done via a tool allowlist). See
-[RESULTS.md](./RESULTS.md).
+In Wave 1, **Claude Code** ran with the local configuration. For Waves 2 and 3,
+its read-only toolset was restricted to Read/Grep/Glob with skills and MCP disabled.
+[Configuration details](./RESULTS.md).
 
 ## Method
 
