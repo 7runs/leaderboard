@@ -15,9 +15,9 @@ Install the CLI with Node.js 20 or later.
 npm install --global @7runs/7runs@0.1.0
 ```
 
-Follow the [public quickstart](https://github.com/7runs/.github/blob/main/profile/README.md) to run the starter suite and verify 14/14 passing executions. Then use the [command and HTTP examples](https://github.com/7runs/.github/tree/main/examples/generic-adapter) to connect your own agent, set the answer you expect, and generate HTML and JSON reports. To run the checks in your repository, copy the [GitHub Actions workflow](https://github.com/7runs/.github/blob/main/.github/workflows/7runs.yml).
+Follow the [public quickstart](https://github.com/7runs/.github/blob/main/profile/README.md) to run the starter suite and verify 14/14 passing executions. Then use the [command and HTTP examples](https://github.com/7runs/.github/tree/main/examples/generic-adapter) to connect your own agent, set the answer you expect, and generate HTML and JSON reports. To run the checks in your repository, follow the [GitHub Actions setup and report guide](https://github.com/7runs/.github/blob/main/examples/github-actions/README.md).
 
-Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [Ask about an organization license](mailto:hello@7runs.dev?subject=7runs%20organization%20license).
+Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [Request an organization license](https://7runs.dev/#request-license).
 
 ## The task (identical for every agent)
 
