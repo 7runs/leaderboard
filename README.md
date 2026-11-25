@@ -7,7 +7,15 @@ because their prompts and scaffolding differ; that difference is what this measu
 
 We used **7runs** to repeat each test and report pass rates, flaky cases and regressions. The [benchmark report](https://7runs.dev/leaderboard) summarizes the results. The suites, fixtures, raw runs and judge transcripts are available here.
 
-The first public source release of the engine is in preparation. Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [Ask about an organization license](mailto:hello@7runs.dev?subject=7runs%20organization%20license).
+To try the engine locally, install the CLI with Node.js 20 or later.
+
+```sh
+npm install --global @7runs/7runs@0.1.0
+```
+
+The [local quickstart](https://7runs.dev/#local) runs two starter cases seven times each and produces HTML and JSON reports. The benchmark suites and their recorded results are documented below.
+
+Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [Ask about an organization license](mailto:hello@7runs.dev?subject=7runs%20organization%20license).
 
 ## The task (identical for every agent)
 
