@@ -23,7 +23,7 @@ Solo builders can test their own projects for free, including paid apps. Use by 
 byte-identical across all suites in a wave, so results are directly comparable.
 
 - **Wave 1** (`fixtures/`, `suite-*.yaml`) — 3 easy cases (SQLi, command injection,
-  clean README). All agents hit the ceiling → we escalated.
+  clean README). Three agents passed 21/21. Claude Code passed 20/21.
 - **Wave 2** (`wave2/`) — 3 *hard* cases: obfuscated command injection, a **safe**
   parameterized-`LIKE` query (false-positive bait), and a multi-file XSS. Still all
   100% at Opus.
@@ -60,29 +60,18 @@ with no skills and no MCP** — deliberately *not* "out-of-the-box Claude Code" 
 
 **Full report: [7runs.dev/leaderboard](https://7runs.dev/leaderboard)**
 
-**[RESULTS.md](./RESULTS.md)** — the three-wave writeup with the headline finding:
-the model axis discriminates where case difficulty did not (Opus 100% → Sonnet
-95–100% → **Haiku 67–76%**, the collapse concentrated on the false-positive bait —
-smaller models keep recall, lose precision).
+On the three hard cases, each agent passed 21/21 reviews on Opus. On Haiku the
+four agents passed all 56 reviews of the two vulnerable diffs, but only 4 of the
+28 reviews of the safe SQL query. [Read the three-wave results](./RESULTS.md).
 
-- Machine-readable data + tables: [`publication/`](./publication/)
-  (`data.json`, `TABLE.md`, `haiku-fp-bait-histograms.md`).
-- **Raw run records for replay:** [`runs/`](./runs/) — per rep, the agent output,
-  token usage, and **both judge transcripts** for every rubric check. (For privacy,
-  absolute local paths and the verbose SDK message stream are stripped; see
-  [`runs/README.md`](./runs/README.md).)
+## Verify a score
 
-## Audit &amp; replay
-
-Everything needed to audit these numbers without the engine is in this repo:
-
-- **Suites and fixtures** are byte-identical published YAML/patch files — you can run
-  every case against any agent with your own harness and compare.
-- **Raw run records** ([`runs/`](./runs/)) contain, per rep, the full agent output,
-  token usage, and **both judge transcripts** for every rubric check — each published
-  number can be recomputed from these records (Wilson CI over the recorded verdicts).
-- **Supervised reproduction with the 7runs engine:** researchers and maintainers of
-  the agents under test can [request a session by email](mailto:hello@7runs.dev?subject=7runs%20benchmark%20reproduction) or open an issue here.
+The [publication tables](./publication/) list per-case scores, confidence intervals
+and run IDs. Select an entry in the [run index](./runs/README.md), then open
+`results.jsonl` in that run’s folder. Each line contains one repetition and its
+pass verdict. The corresponding `raw/<case>/<rep>.json` contains the agent
+output and both judge transcripts. Each suite and its fixture diffs are included
+in this repository.
 
 Method note preserved for the record: the published runs used Claude **subscription**
 auth (`env -u ANTHROPIC_API_KEY` so billing could not silently route to an API key).
