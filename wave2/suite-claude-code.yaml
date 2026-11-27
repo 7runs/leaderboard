@@ -15,7 +15,7 @@
 # prompt/scaffolding, not the model.
 #
 # Run from the repo root:
-#   env -u ANTHROPIC_API_KEY 7runs run wave2/suite-claude-code.yaml --label wave2
+#   env -u ANTHROPIC_API_KEY node "$SEVENRUNS_CLI" run wave2/suite-claude-code.yaml --label wave2
 name: leaderboard-w2-claude-code-restricted
 adapter:
   type: shell
