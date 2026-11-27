@@ -26,7 +26,7 @@ From this benchmark checkout, run a suite with `node "$SEVENRUNS_CLI" run <suite
 
 Follow the [public quickstart](https://github.com/7runs/.github/blob/main/profile/README.md) to run the starter suite and verify 14/14 passing executions. Then use the [command and HTTP examples](https://github.com/7runs/.github/tree/main/examples/generic-adapter) to connect your own agent, set the answer you expect, and generate HTML and JSON reports. To run the checks in your repository, follow the [GitHub Actions setup and report guide](https://github.com/7runs/.github/blob/main/examples/github-actions/README.md).
 
-Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [Request an organization license](https://7runs.dev/#request-license).
+Solo builders can test their own projects for free, including paid apps. Use by or on behalf of an organization requires a separate license. [View organization license pricing](https://7runs.dev/#organization-license).
 
 ## The task (identical for every agent)
 
