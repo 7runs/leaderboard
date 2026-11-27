@@ -9,7 +9,7 @@ We used **7runs** to repeat each test and report pass rates and flaky cases. The
 
 ## Test your own agent
 
-Build the CLI from its GitHub source with Git, Node.js 20 or later and npm. npm installs dependencies; the 7runs engine is not installed from the npm registry.
+Build the CLI from its GitHub source with Git, Node.js 22.13+ (22.x) or 24+ and npm. npm installs dependencies; the 7runs engine is not installed from the npm registry.
 
 > The engine repository is currently private while public access is being prepared. The following commands require repository access; anonymous installation is not available yet.
 
