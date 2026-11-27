@@ -5,7 +5,7 @@
 # headless run may read the staged diff. The shell adapter cannot capture token
 # usage, so cost/model are reported from this pin, not from the transcript.
 #
-# Run from the repo root:  7runs run suite-claude-code.yaml
+# Run from the repo root:  node "$SEVENRUNS_CLI" run suite-claude-code.yaml
 name: leaderboard-claude-code-itself
 adapter:
   type: shell

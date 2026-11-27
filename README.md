@@ -9,11 +9,20 @@ We used **7runs** to repeat each test and report pass rates and flaky cases. The
 
 ## Test your own agent
 
-Install the CLI with Node.js 20 or later.
+Build the CLI from its GitHub source with Git, Node.js 20 or later and npm. npm installs dependencies; the 7runs engine is not installed from the npm registry.
+
+> The engine repository is currently private while public access is being prepared. The following commands require repository access; anonymous installation is not available yet.
 
 ```sh
-npm install --global @7runs/7runs@0.1.0
+git clone https://github.com/7runs/7runs.git ../7runs-engine
+cd ../7runs-engine
+npm ci
+npm run build:cli
+export SEVENRUNS_CLI="$PWD/dist/index.js"
+cd -
 ```
+
+From this benchmark checkout, run a suite with `node "$SEVENRUNS_CLI" run <suite.yaml>` and generate its reports with `node "$SEVENRUNS_CLI" report latest`. Use the starter quickstart below first to check installation without model credentials. Published model-backed benchmark suites require your own configured model access and can incur model-provider costs.
 
 Follow the [public quickstart](https://github.com/7runs/.github/blob/main/profile/README.md) to run the starter suite and verify 14/14 passing executions. Then use the [command and HTTP examples](https://github.com/7runs/.github/tree/main/examples/generic-adapter) to connect your own agent, set the answer you expect, and generate HTML and JSON reports. To run the checks in your repository, follow the [GitHub Actions setup and report guide](https://github.com/7runs/.github/blob/main/examples/github-actions/README.md).
 

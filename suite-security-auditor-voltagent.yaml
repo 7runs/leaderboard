@@ -3,7 +3,7 @@
 # Task: security review of a code diff. Same 3 cases as every Phase 1-A suite, so
 # results are directly comparable across agents (whole-system flakiness).
 #
-# Run from the repo root:  7runs run suite-security-auditor-wshobson.yaml
+# Run from the repo root:  node "$SEVENRUNS_CLI" run suite-security-auditor-voltagent.yaml
 name: leaderboard-security-auditor-voltagent
 adapter:
   type: claude-agent
